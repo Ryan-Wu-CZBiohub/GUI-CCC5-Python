@@ -10,7 +10,7 @@ class ValveController:
         self.buttons = []                       # List to hold button references
 
 
-    def toggle_valve(self, button: QPushButton):
+    def toggleValve(self, button: QPushButton):
         """Handle individual valve toggle."""
         state = "opened" if button.isChecked() else "closed"
         color = self.on_color if button.isChecked() else self.off_color
@@ -18,7 +18,15 @@ class ValveController:
         print(f"Valve {button.text()} {state}")
 
 
-    def valve_close_all(self):
+    def valveOpenAll(self):
+        """Open all valves by toggling all buttons on."""
+        for btn in self.buttons:
+            if not btn.isChecked():
+                btn.setChecked(True)
+        print("All valves opened")
+
+    
+    def valveCloseAll(self):
         """Close all valves by toggling all buttons off."""
         for btn in self.buttons:
             if btn.isChecked():

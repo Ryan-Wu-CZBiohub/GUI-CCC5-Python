@@ -42,7 +42,7 @@ class GUI(QMainWindow):
                 btn.setCheckable(True)
                 btn.setMinimumSize(50, 50) 
                 btn.setStyleSheet(f"background-color: {self.valve_controller.off_color.name()}")
-                btn.toggled.connect(self.handle_valve_toggle)
+                btn.toggled.connect(self.handleValveToggle)
 
                 # Track the button in the ValveController
                 self.valve_controller.buttons.append(btn)
@@ -53,24 +53,38 @@ class GUI(QMainWindow):
         main_layout.addLayout(grid_layout)
 
 
-    def handle_valve_toggle(self):
+    def handleValveToggle(self):
         button = self.sender()
-        self.valve_controller.toggle_valve(button)
+        self.valve_controller.toggleValve(button)
 
     
-    def PromptForClose(self):
+    def promptForClose(self):
         reply = QMessageBox.question(
             self, 'Confirm Close',
             "Are you sure you want to close the application?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
-        return reply == QMessageBox.Yes
+        if reply == QMessageBox.Yes:
+            action_reply = QMessageBox.question(
+                self, "Valve Shutdown",
+                "Do you want to close all valves before exiting?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                QMessageBox.Yes
+            )
 
+            if action_reply == QMessageBox.Yes:
+                self.valve_controller.valveCloseAll()
+            elif action_reply == QMessageBox.No:
+                print("Leaving valves as-is.")
+            else:  # Cancel exit
+                return False
+            return True
+        return False
+    
 
     def closeEvent(self, event):
-        if self.PromptForClose():
-            self.valve_controller.valve_close_all()  # Close all valves
+        if self.promptForClose():
             print("Closing the application...")
             event.accept()
         else:
