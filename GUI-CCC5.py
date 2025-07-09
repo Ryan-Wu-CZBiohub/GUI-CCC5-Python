@@ -2,6 +2,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox
 )
 from PySide6.QtGui import QPalette, QColor, QFont
+from PySide6.QtGui import QIcon
 
 class CCC5GUI(QMainWindow):
     def __init__(self):
@@ -12,6 +13,7 @@ class CCC5GUI(QMainWindow):
         # Central widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+        self.setWindowIcon(QIcon("Media/Logos/CZI-CZ-Biohub-Mark-CHI-Color-RGB.png"))
 
         # Create a layout
         main_layout = QVBoxLayout(central_widget)
