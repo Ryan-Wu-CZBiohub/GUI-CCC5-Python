@@ -1,21 +1,27 @@
+''' Custom GUI Class for CCC5 Control Application '''
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox
 )
 from PySide6.QtGui import QPalette, QColor, QFont
 from PySide6.QtGui import QIcon
 
-class CCC5GUI(QMainWindow):
+# Importing the custom valve controls functions
+from Functions.Valve_Controls import ValveController
+
+class GUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Command Window")
+        self.setWindowIcon(QIcon("Media/Logos/CZI-CZ-Biohub-Mark-CHI-Color-RGB.png"))
         self.resize(1600, 900)
+
+        # Initialize the ValveController
+        self.valve_controller = ValveController()
 
         # Central widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        self.setWindowIcon(QIcon("Media/Logos/CZI-CZ-Biohub-Mark-CHI-Color-RGB.png"))
-
-        # Create a layout
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -26,40 +32,30 @@ class CCC5GUI(QMainWindow):
         central_widget.setAutoFillBackground(True)
         central_widget.setPalette(palette)
 
-        # Font settings
-        font20 = QFont()
-        font20.setPointSize(20)
-        self.setFont(font20)
-
-        # Button color states
-        self.on_color = QColor(0, 255, 0)       # Green for "OPEN"
-        self.off_color = QColor(255, 0, 0)      # Red for "CLOSE"
-
         # Create grid of toggle buttons (8 rows, 12 columns = 96 buttons)
-        self.buttons = []
         grid_layout = QVBoxLayout()
         for i in range(8):
             row_layout = QHBoxLayout()
-            row_buttons = []
             for j in range(12):
-                btn = QPushButton(f"{i * 12 + j + 1}")
+                valve_id = i * 12 + j + 1
+                btn = QPushButton(str(valve_id))
                 btn.setCheckable(True)
                 btn.setMinimumSize(50, 50) 
-                btn.setStyleSheet(f"background-color: {self.off_color.name()};")
-                btn.toggled.connect(self.on_button_toggled)
+                btn.setStyleSheet(f"background-color: {self.valve_controller.off_color.name()}")
+                btn.toggled.connect(self.handle_valve_toggle)
+
+                # Track the button in the ValveController
+                self.valve_controller.buttons.append(btn)
+
                 row_layout.addWidget(btn)
-                row_buttons.append(btn)
-            self.buttons.append(row_buttons)
             grid_layout.addLayout(row_layout)
 
-        # Add the grid layout to the main layout
         main_layout.addLayout(grid_layout)
 
 
-    def on_button_toggled(self, checked):
+    def handle_valve_toggle(self):
         button = self.sender()
-        color = self.on_color if checked else self.off_color
-        button.setStyleSheet(f"background-color: {color.name()};")
+        self.valve_controller.toggle_valve(button)
 
     
     def PromptForClose(self):
@@ -74,17 +70,17 @@ class CCC5GUI(QMainWindow):
 
     def closeEvent(self, event):
         if self.PromptForClose():
-            self.cleanup()
-            event.accept()
+            self.valve_controller.valve_close_all()  # Close all valves
             print("Closing the application...")
+            event.accept()
         else:
-            event.ignore()
             print("Close event ignored.")
+            event.ignore()
 
 
 
 if __name__ == "__main__":
     app = QApplication([])
-    window = CCC5GUI()
+    window = GUI()
     window.show()
     app.exec()  # Start the application event loop
