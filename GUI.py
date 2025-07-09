@@ -1,10 +1,9 @@
 ''' Custom GUI Class for CCC5 Control Application '''
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout
 )
-from PySide6.QtGui import QPalette, QColor, QFont
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QPalette, QColor, QIcon
 
 # Importing the custom valve controls functions
 from Functions.Valve_Controls import ValveController
