@@ -7,6 +7,7 @@ from PySide6.QtGui import QPalette, QColor, QIcon
 
 # Importing the custom valve controls functions
 from Controls.Valve_Controls import ValveController
+from UI.Panels import PumpPanel
 
 class GUI(QMainWindow):
     def __init__(self):
@@ -53,7 +54,9 @@ class GUI(QMainWindow):
             grid_layout.addLayout(row_layout)
 
         main_layout.addLayout(grid_layout)
-
+        
+        self.pump_panel = PumpPanel()
+        main_layout.addWidget(self.pump_panel)
 
     def handleValveToggle(self):
         button = self.sender()
