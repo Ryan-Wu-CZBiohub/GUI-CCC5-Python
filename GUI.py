@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPalette, QColor, QIcon
 
 # Importing the custom valve controls functions
-from Functions.Valve_Controls import ValveController
+from Controls.Valve_Controls import ValveController
 
 class GUI(QMainWindow):
     def __init__(self):
@@ -37,10 +37,13 @@ class GUI(QMainWindow):
             row_layout = QHBoxLayout()
             for j in range(12):
                 valve_id = i * 12 + j + 1
-                btn = QPushButton(str(valve_id))
+                btn = QPushButton(f"{valve_id} - CLOSE")
+                # btn = QPushButton(str(valve_id))
                 btn.setCheckable(True)
                 btn.setMinimumSize(50, 50) 
-                btn.setStyleSheet(f"background-color: {self.valve_controller.off_color.name()}")
+
+                btn.setProperty("valve_id", valve_id)
+                btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.off_color.name()};")
                 btn.toggled.connect(self.handleValveToggle)
 
                 # Track the button in the ValveController
