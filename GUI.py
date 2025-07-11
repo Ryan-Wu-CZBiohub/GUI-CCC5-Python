@@ -1,8 +1,9 @@
 ''' Custom GUI Class for CCC5 Control Application '''
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout, QTextEdit, QLabel
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout, QTextEdit, QLabel, QDockWidget
 )
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette, QColor, QIcon
 from datetime import datetime
 
@@ -35,18 +36,47 @@ class GUI(QMainWindow):
         central_widget.setAutoFillBackground(True)
         central_widget.setPalette(palette)
 
+        # # Control panels
+        # self.valve_panel = ValvePanel(logger=self.logMessage)
+        # main_layout.addWidget(self.valve_panel)
+        # self.pump_panel = PumpPanel(logger=self.logMessage)
+        # main_layout.addWidget(self.pump_panel)
+
         # Control panels
         self.valve_panel = ValvePanel(logger=self.logMessage)
-        main_layout.addWidget(self.valve_panel)
+        valve_dock = QDockWidget("Valve Panel", self)
+        valve_dock.setWidget(self.valve_panel)
+        valve_dock.setFloating(False)
+        self.addDockWidget(Qt.LeftDockWidgetArea, valve_dock)
+
         self.pump_panel = PumpPanel(logger=self.logMessage)
-        main_layout.addWidget(self.pump_panel)
+        pump_dock = QDockWidget("Pump Panel", self)
+        pump_dock.setWidget(self.pump_panel)
+        pump_dock.setFloating(False)
+        self.addDockWidget(Qt.RightDockWidgetArea, pump_dock)
+
+        # # Status text box
+        # self.status_box = QTextEdit()
+        # self.status_box.setReadOnly(True)
+        # self.status_box.setMinimumHeight(100)
+        # main_layout.addWidget(QLabel("Status Log:"))
+        # main_layout.addWidget(self.status_box)
 
         # Status text box
+        status_widget = QWidget()
+        status_layout = QVBoxLayout(status_widget)
+        status_layout.setContentsMargins(5, 5, 5, 5)
+
         self.status_box = QTextEdit()
         self.status_box.setReadOnly(True)
-        self.status_box.setMinimumHeight(100)
-        main_layout.addWidget(QLabel("Status Log:"))
-        main_layout.addWidget(self.status_box)
+        status_layout.addWidget(self.status_box)
+
+        status_dock = QDockWidget("Status Log", self)
+        status_dock.setWidget(status_widget)
+        status_dock.setFloating(False)
+        self.addDockWidget(Qt.BottomDockWidgetArea, status_dock)
+
+        
 
 
     def logMessage(self, message: str):
