@@ -1,7 +1,34 @@
 ''' Custom Valve Controls Functions for GUI-CCC5 Application '''
 
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout
+)
 from PySide6.QtGui import QColor
+
+class ValvePanel(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.valve_controller = ValveController()
+        layout = QVBoxLayout()
+        for i in range(8):
+            row_layout = QHBoxLayout()
+            for j in range(12):
+                valve_id = i * 12 + j + 1
+                btn = QPushButton(f"{valve_id} - CLOSE")
+                btn.setCheckable(True)
+                btn.setMinimumSize(50, 50)
+                btn.setProperty("valve_id", valve_id)
+                btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.off_color.name()};")
+                btn.toggled.connect(self.handleValveToggle)
+                row_layout.addWidget(btn)
+            layout.addLayout(row_layout)
+        self.setLayout(layout)
+
+
+    def handleValveToggle(self):
+        button = self.sender()
+        self.valve_controller.toggleValve(button)
+
 
 class ValveController:
     def __init__(self):
@@ -12,9 +39,9 @@ class ValveController:
 
     def toggleValve(self, button: QPushButton):
         """Handle individual valve toggle."""
-        is_open = button.isChecked()
-        state = "OPEN" if is_open else "CLOSE"
-        color = self.on_color if is_open else self.off_color
+        is_on = button.isChecked()
+        state = "OPEN" if is_on else "CLOSE"
+        color = self.on_color if is_on else self.off_color
 
         valve_id = button.property("valve_id")
         button.setText(f"{valve_id} - {state}")

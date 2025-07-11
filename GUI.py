@@ -6,8 +6,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPalette, QColor, QIcon
 
 # Importing the custom valve controls functions
-from Controls.Valve_Controls import ValveController
-from UI.Panels import PumpPanel
+from Controls.Valve_Controls import ValvePanel, ValveController
+from Controls.Pump_Controls import PumpPanel, PumpController
 
 class GUI(QMainWindow):
     def __init__(self):
@@ -16,8 +16,9 @@ class GUI(QMainWindow):
         self.setWindowIcon(QIcon("Media/Logos/CZI-CZ-Biohub-Mark-CHI-Color-RGB.png"))
         self.resize(1600, 900)
 
-        # Initialize the ValveController
+        # Initialize the controllers
         self.valve_controller = ValveController()
+        self.pump_controller = PumpController()
 
         # Central widget and layout
         central_widget = QWidget()
@@ -32,36 +33,13 @@ class GUI(QMainWindow):
         central_widget.setAutoFillBackground(True)
         central_widget.setPalette(palette)
 
-        # Create grid of toggle buttons (8 rows, 12 columns = 96 buttons)
-        grid_layout = QVBoxLayout()
-        for i in range(8):
-            row_layout = QHBoxLayout()
-            for j in range(12):
-                valve_id = i * 12 + j + 1
-                btn = QPushButton(f"{valve_id} - CLOSE")
-                # btn = QPushButton(str(valve_id))
-                btn.setCheckable(True)
-                btn.setMinimumSize(50, 50) 
+        # Control panels
+        self.valve_panel = ValvePanel()
+        main_layout.addWidget(self.valve_panel)
 
-                btn.setProperty("valve_id", valve_id)
-                btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.off_color.name()};")
-                btn.toggled.connect(self.handleValveToggle)
-
-                # Track the button in the ValveController
-                self.valve_controller.buttons.append(btn)
-
-                row_layout.addWidget(btn)
-            grid_layout.addLayout(row_layout)
-
-        main_layout.addLayout(grid_layout)
-        
         self.pump_panel = PumpPanel()
         main_layout.addWidget(self.pump_panel)
-
-    def handleValveToggle(self):
-        button = self.sender()
-        self.valve_controller.toggleValve(button)
-
+        
     
     def promptForClose(self):
         reply = QMessageBox.question(
