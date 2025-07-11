@@ -13,11 +13,11 @@ class PumpPanel(QWidget):
             btn.setCheckable(True)
             btn.setMinimumSize(50, 50)
             btn.setProperty("pump_id", pump_id)
-            btn.setStyleSheet("color: black; background-color: lightgray;")
             btn.setStyleSheet(f"color: black; background-color: {self.pump_controller.off_color.name()};")
             btn.toggled.connect(self.handlePumpToggle)
             layout.addWidget(btn)
         self.setLayout(layout)
+
 
     def handlePumpToggle(self):
         button = self.sender()
@@ -29,6 +29,7 @@ class PumpController:
         self.on_color = QColor(135, 185, 245)       # Blue for "ON"
         self.off_color = QColor(255, 255, 55)       # Yellow for "OFF"
         self.buttons = []                           # List to hold button references
+
 
     def togglePump(self, button: QPushButton):
         """Handle individual pump toggle."""

@@ -36,10 +36,9 @@ class GUI(QMainWindow):
         # Control panels
         self.valve_panel = ValvePanel()
         main_layout.addWidget(self.valve_panel)
-
         self.pump_panel = PumpPanel()
         main_layout.addWidget(self.pump_panel)
-        
+
     
     def promptForClose(self):
         reply = QMessageBox.question(
