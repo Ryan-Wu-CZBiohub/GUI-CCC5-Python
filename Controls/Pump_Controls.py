@@ -48,12 +48,12 @@ class PumpController:
         for btn in self.buttons:
             if not btn.isChecked():
                 btn.setChecked(True)
-        print("All pumps turned ON")
-        
+        print("All pumps ON")
+
 
     def pumpOffAll(self):
         """Turn off all pumps by toggling all buttons off."""
         for btn in self.buttons:
             if btn.isChecked():
                 btn.setChecked(False)
-        print("All pumps turned OFF")
+        print("All pumps OFF")

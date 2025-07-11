@@ -14,7 +14,7 @@ class ValvePanel(QWidget):
             row_layout = QHBoxLayout()
             for j in range(12):
                 valve_id = i * 12 + j + 1
-                btn = QPushButton(f"{valve_id} - CLOSE")
+                btn = QPushButton(f"Valve {valve_id} - OFF")
                 btn.setCheckable(True)
                 btn.setMinimumSize(50, 50)
                 btn.setProperty("valve_id", valve_id)
@@ -40,11 +40,11 @@ class ValveController:
     def toggleValve(self, button: QPushButton):
         """Handle individual valve toggle."""
         is_on = button.isChecked()
-        state = "OPEN" if is_on else "CLOSE"
+        state = "ON" if is_on else "OFF"
         color = self.on_color if is_on else self.off_color
 
         valve_id = button.property("valve_id")
-        button.setText(f"{valve_id} - {state}")
+        button.setText(f"Valve {valve_id} - {state}")
         button.setStyleSheet(f"color: black; background-color: {color.name()};")
         print(f"Valve {valve_id} {state}")
 
@@ -54,7 +54,7 @@ class ValveController:
         for btn in self.buttons:
             if not btn.isChecked():
                 btn.setChecked(True)
-        print("All valves opened")
+        print("All valves ON")
 
     
     def valveOffAll(self):
@@ -62,6 +62,6 @@ class ValveController:
         for btn in self.buttons:
             if btn.isChecked():
                 btn.setChecked(False)
-        print("All valves closed")
+        print("All valves OFF")
 
     
