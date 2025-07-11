@@ -8,6 +8,7 @@ from datetime import datetime
 
 from Controls.Pump_Controls import PumpPanel, PumpController
 
+
 class ValvePanel(QWidget):
     def __init__(self, logger=None):
         super().__init__()
@@ -56,6 +57,7 @@ class ValvePanel(QWidget):
     def updateStatus(self, message):
         if self.logger:
             self.logger(message)
+
 
 class ValveController:
     def __init__(self, valve_panel=None, logger=None):

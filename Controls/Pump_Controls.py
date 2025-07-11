@@ -24,7 +24,7 @@ class PumpPanel(QWidget):
 
     def handlePumpToggle(self):
         button = self.sender()
-        self.pump_controller.togglePump(button)
+        self.pump_controller.pumpToggle(button)
 
 
     def updateStatus(self, message):
@@ -42,7 +42,7 @@ class PumpController:
         self.pump_panel = pump_panel
         self.logger = logger
 
-    def togglePump(self, button: QPushButton):
+    def pumpToggle(self, button: QPushButton):
         """Handle individual pump toggle."""
         is_on = button.isChecked()
         state = "ON" if is_on else "OFF"

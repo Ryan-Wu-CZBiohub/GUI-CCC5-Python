@@ -10,6 +10,7 @@ from datetime import datetime
 from Controls.Valve_Controls import ValvePanel, ValveController
 from Controls.Pump_Controls import PumpPanel, PumpController
 
+
 class GUI(QMainWindow):
     def __init__(self):
         super().__init__()
