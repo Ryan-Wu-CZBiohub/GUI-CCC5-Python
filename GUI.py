@@ -50,15 +50,16 @@ class GUI(QMainWindow):
         if reply == QMessageBox.Yes:
             action_reply = QMessageBox.question(
                 self, "Valve Shutdown",
-                "Do you want to close all valves before exiting?",
+                "Do you want to close all valves and pumps before exiting?",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
                 QMessageBox.Yes
             )
 
             if action_reply == QMessageBox.Yes:
-                self.valve_controller.valveCloseAll()
+                self.valve_controller.valveOffAll()
+                self.pump_controller.pumpOffAll()
             elif action_reply == QMessageBox.No:
-                print("Leaving valves as-is.")
+                print("Leaving valves and pumps as-is.")
             else:  # Cancel exit
                 return False
             return True

@@ -41,3 +41,19 @@ class PumpController:
         button.setText(f"Pump {pump_id} - {state}")
         button.setStyleSheet(f"color: black; background-color: {color.name()};")
         print(f"Pump {pump_id} {state}")
+
+
+    def pumpOnAll(self):
+        """Turn on all pumps by toggling all buttons on."""
+        for btn in self.buttons:
+            if not btn.isChecked():
+                btn.setChecked(True)
+        print("All pumps turned ON")
+        
+
+    def pumpOffAll(self):
+        """Turn off all pumps by toggling all buttons off."""
+        for btn in self.buttons:
+            if btn.isChecked():
+                btn.setChecked(False)
+        print("All pumps turned OFF")

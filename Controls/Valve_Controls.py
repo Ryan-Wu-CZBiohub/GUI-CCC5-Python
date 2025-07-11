@@ -49,7 +49,7 @@ class ValveController:
         print(f"Valve {valve_id} {state}")
 
 
-    def valveOpenAll(self):
+    def valveOnAll(self):
         """Open all valves by toggling all buttons on."""
         for btn in self.buttons:
             if not btn.isChecked():
@@ -57,7 +57,7 @@ class ValveController:
         print("All valves opened")
 
     
-    def valveCloseAll(self):
+    def valveOffAll(self):
         """Close all valves by toggling all buttons off."""
         for btn in self.buttons:
             if btn.isChecked():
