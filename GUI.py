@@ -1,9 +1,10 @@
 ''' Custom GUI Class for CCC5 Control Application '''
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout, QTextEdit, QLabel
 )
 from PySide6.QtGui import QPalette, QColor, QIcon
+from datetime import datetime
 
 # Importing the custom valve controls functions
 from Controls.Valve_Controls import ValvePanel, ValveController
@@ -34,10 +35,23 @@ class GUI(QMainWindow):
         central_widget.setPalette(palette)
 
         # Control panels
-        self.valve_panel = ValvePanel()
+        self.valve_panel = ValvePanel(logger=self.logMessage)
         main_layout.addWidget(self.valve_panel)
-        self.pump_panel = PumpPanel()
+        self.pump_panel = PumpPanel(logger=self.logMessage)
         main_layout.addWidget(self.pump_panel)
+
+        # Status text box
+        self.status_box = QTextEdit()
+        self.status_box.setReadOnly(True)
+        self.status_box.setMinimumHeight(100)
+        main_layout.addWidget(QLabel("Status Log:"))
+        main_layout.addWidget(self.status_box)
+
+
+    def logMessage(self, message: str):
+        """Log a message to the status box."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.status_box.append(f"{timestamp} {message}")
 
     
     def promptForClose(self):

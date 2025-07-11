@@ -1,14 +1,18 @@
 ''' Custom Valve Controls Functions for GUI-CCC5 Application '''
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout, QTextEdit, QLabel
 )
 from PySide6.QtGui import QColor
+from datetime import datetime
+
+from Controls.Pump_Controls import PumpPanel, PumpController
 
 class ValvePanel(QWidget):
-    def __init__(self):
+    def __init__(self, logger=None):
         super().__init__()
-        self.valve_controller = ValveController()
+        self.logger = logger
+        self.valve_controller = ValveController(self, logger=self.logger)
         layout = QVBoxLayout()
         for i in range(8):
             row_layout = QHBoxLayout()
@@ -21,6 +25,7 @@ class ValvePanel(QWidget):
                 btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.off_color.name()};")
                 btn.toggled.connect(self.handleValveToggle)
                 row_layout.addWidget(btn)
+                self.valve_controller.buttons.append(btn)
             layout.addLayout(row_layout)
         self.setLayout(layout)
 
@@ -29,12 +34,19 @@ class ValvePanel(QWidget):
         button = self.sender()
         self.valve_controller.toggleValve(button)
 
+    
+    def updateStatus(self, message):
+        if self.logger:
+            self.logger(message)
 
 class ValveController:
-    def __init__(self):
+    def __init__(self, valve_panel=None, logger=None):
         self.on_color = QColor(135, 185, 245)       # Blue for "OPEN"
-        self.off_color = QColor(255, 255, 55)    # Yellow for "CLOSE"
-        self.buttons = []                       # List to hold button references
+        self.off_color = QColor(255, 255, 55)       # Yellow for "CLOSE"
+        self.buttons = []                           # List to hold button references
+
+        self.valve_panel = valve_panel
+        self.logger = logger
 
 
     def toggleValve(self, button: QPushButton):
@@ -46,7 +58,12 @@ class ValveController:
         valve_id = button.property("valve_id")
         button.setText(f"Valve {valve_id} - {state}")
         button.setStyleSheet(f"color: black; background-color: {color.name()};")
-        print(f"Valve {valve_id} {state}")
+
+        msg = f"Valve {valve_id} {state}"
+        print(msg)
+    
+        if self.logger:
+            self.logger(msg)
 
 
     def valveOnAll(self):
