@@ -63,7 +63,7 @@ class GUI(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             action_reply = QMessageBox.question(
-                self, "Valve Shutdown",
+                self, "Shutdowns",
                 "Do you want to close all valves and pumps before exiting?",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
                 QMessageBox.Yes
