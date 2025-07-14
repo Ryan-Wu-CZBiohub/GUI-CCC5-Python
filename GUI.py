@@ -10,6 +10,7 @@ from PySide6.QtGui import QPalette, QColor, QIcon
 from datetime import datetime
 
 # Importing the custom valve controls functions
+from Connection.Control_Box import ControlBox
 from Controls.Valve_Controls import ValvePanel, ValveController
 from Controls.Pump_Controls import PumpPanel, PumpController
 
@@ -24,9 +25,20 @@ class GUI(QMainWindow):
         self.resize(1600, 900)
         self.setMinimumSize(1600, 900)
 
+
         # Initialize controllers
-        self.valve_controller = ValveController()
-        self.pump_controller = PumpController()
+
+        # Control Box for managing devices
+        self.control_box = ControlBox()
+        # connect to USB devices
+        self.control_box.scanForDevices()
+        # connect to all available devices
+        self.control_box.connectToAllDevices()
+        # self.control_box.connectToDevice("COM4")
+        # self.control_box.connectToDevice("COM5")
+        # self.control_box.connectToDevice("COM6")
+        # Valve Controller for managing valves
+
 
         # Central widget & dock layout
         central_widget = QWidget()
@@ -47,7 +59,7 @@ class GUI(QMainWindow):
         central_widget.setPalette(palette)
 
         # Valve control panel
-        self.valve_panel = ValvePanel(logger=self.logMessage)
+        self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
         valve_dock = QDockWidget("Valve Panel", self)
         valve_dock.setWidget(self.valve_panel)
         valve_dock.setFloating(False)
@@ -136,7 +148,7 @@ class GUI(QMainWindow):
             )
 
             if action_reply == QMessageBox.Yes:
-                self.valve_controller.valveOffAll()
+                self.control_box.setAllValvesOff()
                 self.pump_controller.pumpOffAll()
             elif action_reply == QMessageBox.No:
                 print("Leaving valves and pumps as-is.")

@@ -7,13 +7,15 @@ from PySide6.QtGui import QColor
 from datetime import datetime
 
 from Controls.Pump_Controls import PumpPanel, PumpController
+from Connection.Control_Box import ControlBox
 
 
 class ValvePanel(QWidget):
-    def __init__(self, logger=None):
+    def __init__(self, valve_panel=None, logger=None, control_box=None):
         super().__init__()
         self.logger = logger
-        self.valve_controller = ValveController(self, logger=self.logger)
+        self.control_box = control_box
+        self.valve_controller = ValveController(self, logger=self.logger, control_box=self.control_box)
         main_layout = QVBoxLayout()
 
         # Button for toggling all
@@ -29,7 +31,8 @@ class ValvePanel(QWidget):
         self.toggle_all_off_btn.setCheckable(True)
         self.toggle_all_off_btn.setMinimumSize(50, 50)
         self.toggle_all_off_btn.setStyleSheet("color: black; background-color: lightgrey;")
-        self.toggle_all_off_btn.toggled.connect(self.valve_controller.valveOffAll)  
+        self.toggle_all_off_btn.toggled.connect(self.valve_controller.valveOffAll) 
+        
         controlAll_layout.addWidget(self.toggle_all_off_btn)
 
         # Buttons for each individual valves
@@ -60,13 +63,14 @@ class ValvePanel(QWidget):
 
 
 class ValveController:
-    def __init__(self, valve_panel=None, logger=None):
+    def __init__(self, valve_panel=None, logger=None, control_box=None):
         self.on_color = QColor(135, 185, 245)       # Blue for "OPEN"
         self.off_color = QColor(255, 255, 55)       # Yellow for "CLOSE"
         self.buttons = []                           # List to hold button references
 
         self.valve_panel = valve_panel
         self.logger = logger
+        self.control_box = control_box
 
 
     def valveToggle(self, button: QPushButton):
@@ -85,18 +89,27 @@ class ValveController:
         if self.logger:
             self.logger(msg)
 
+        if self.control_box:
+            # Send command to control box
+            self.control_box.setValveState(valve_id, is_on)
+            self.control_box.flush()
+        else:
+            print("ControlBox not connected or not available.")
+
 
     def valveOnAll(self):
         """Open all valves by toggling all buttons on."""
+        self.control_box.setAllValvesOn()
+        
         for btn in self.buttons:
-            if not btn.isChecked():
-                btn.setChecked(True)
+            btn.setChecked(True) 
         print("All valves ON")
 
-    
+
     def valveOffAll(self):
         """Close all valves by toggling all buttons off."""
+        self.control_box.setAllValvesOff()
+        
         for btn in self.buttons:
-            if btn.isChecked():
-                btn.setChecked(False)
+            btn.setChecked(False) 
         print("All valves OFF")
