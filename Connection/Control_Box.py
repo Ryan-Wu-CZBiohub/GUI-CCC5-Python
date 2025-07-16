@@ -8,6 +8,9 @@ class ControlBox:
         self.connected = False
         self.serial_ports: Dict[str, Serial] = {}
         self.device_info: Dict[str, ListPortInfo] = {}
+        self.valve_state: Dict[int, List[bool]] = {}  # 24 valve states per device
+
+
         self.device_states: Dict[str, List[bool]] = {}  # 24 valve states per device
         self.valve_to_port: Dict[int, str] = {}  # Maps valve ID to port
 
@@ -46,6 +49,13 @@ class ControlBox:
         self.valve_to_port.clear()
         self.connected = False
 
+    def getValveState(self, valve_id: int) -> Optional[bool]:
+        port = self.valve_to_port.get(valve_id)
+        if port is None:
+            return None
+        index = (valve_id - 1) % 24
+        return self.device_states.get(port, [False]*24)[index]
+
     def setValveState(self, valve_id: int, state: bool):
         port = self.valve_to_port.get(valve_id)
         if not port:
@@ -74,12 +84,7 @@ class ControlBox:
                 value |= 1 << i
         return bytes([value])
 
-    def getValveState(self, valve_id: int) -> Optional[bool]:
-        port = self.valve_to_port.get(valve_id)
-        if port is None:
-            return None
-        index = (valve_id - 1) % 24
-        return self.device_states.get(port, [False]*24)[index]
+    
 
     def setAllValvesOff(self, total_valves: int = 96):
         for valve_id in range(1, total_valves + 1):

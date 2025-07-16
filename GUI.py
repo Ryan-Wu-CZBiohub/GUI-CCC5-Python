@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, 
     QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, 
-    QGridLayout, QTextEdit, QLabel, QDockWidget, QFileDialog
+    QGridLayout, QTextEdit, QLabel, QDockWidget, QFileDialog, QMainWindow
     )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette, QColor, QIcon
@@ -11,11 +11,11 @@ from datetime import datetime
 
 # Importing the custom valve controls functions
 from Connection.Control_Box import ControlBox
-from Controls.Valve_Controls import ValvePanel, ValveController
-from Controls.Pump_Controls import PumpPanel, PumpController
+from Controls.Controls import ValveController, PumpController
+from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
 
 
-class GUI(QMainWindow):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -24,16 +24,17 @@ class GUI(QMainWindow):
         self.setWindowIcon(QIcon("Media/Logos/CZI-CZ-Biohub-Mark-CHI-Color-RGB.png"))
         self.resize(1600, 900)
         self.setMinimumSize(1600, 900)
+        # self.setStyleSheet("background-color: rgb(230, 230, 230);")   # light gray background
 
 
         # Initialize controllers
 
-        # Control Box for managing devices
-        self.control_box = ControlBox()
-        # connect to USB devices
-        self.control_box.scanForDevices()
-        # connect to all available devices
-        self.control_box.connectToAllDevices()
+        # # Control Box for managing devices
+        # self.control_box = ControlBox()
+        # # connect to USB devices
+        # self.control_box.scanForDevices()
+        # # connect to all available devices
+        # self.control_box.connectToAllDevices()
         # self.control_box.connectToDevice("COM4")
         # self.control_box.connectToDevice("COM5")
         # self.control_box.connectToDevice("COM6")
@@ -43,7 +44,7 @@ class GUI(QMainWindow):
         # Central widget & dock layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        central_layout = QVBoxLayout(central_widget)
+        central_layout = QHBoxLayout(central_widget)
         central_layout.addStretch(1)
         central_layout.setContentsMargins(0, 0, 0, 0)
         central_layout.setSpacing(0)
@@ -54,23 +55,35 @@ class GUI(QMainWindow):
 
         # Background palette
         palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(255, 255, 255))    # White background
-        central_widget.setAutoFillBackground(True)
-        central_widget.setPalette(palette)
+        palette.setColor(QPalette.Window, QColor(230, 230, 230))
 
+      
         # Valve control panel
-        self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
-        valve_dock = QDockWidget("Valve Panel", self)
-        valve_dock.setWidget(self.valve_panel)
+        # self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
+
+        valve_widget = QWidget()
+        valve_layout = QVBoxLayout(valve_widget)
+        valve_layout.setContentsMargins(5, 5, 5, 5)
+
+
+        self.valve_panel = ValvePanel(logger=self.logMessage)
+        valve_layout.addWidget(self.valve_panel)
+
+        valve_dock = QDockWidget("Valve Control Panel", self)
+        valve_dock.setWidget(valve_widget)
         valve_dock.setFloating(False)
         valve_dock.setMinimumWidth(1300)
         valve_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        valve_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        valve_dock.setFeatures(
+            QDockWidget.DockWidgetMovable | 
+            QDockWidget.DockWidgetFloatable  
+            # | QDockWidget.DockWidgetClosable
+        )   
         self.addDockWidget(Qt.LeftDockWidgetArea, valve_dock)
 
         # Pump control panel
         self.pump_panel = PumpPanel(logger=self.logMessage)
-        pump_dock = QDockWidget("Pump Panel", self)
+        pump_dock = QDockWidget("Pump Control Panel", self)
         pump_dock.setWidget(self.pump_panel)
         pump_dock.setFloating(False)
         pump_dock.setMinimumWidth(300)
@@ -91,6 +104,11 @@ class GUI(QMainWindow):
         status_dock.setWidget(status_widget)
         status_dock.setFloating(False)
         status_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        status_dock.setFeatures(
+            QDockWidget.DockWidgetMovable | 
+            QDockWidget.DockWidgetFloatable  
+            # | QDockWidget.DockWidgetClosable
+        )   
         self.addDockWidget(Qt.BottomDockWidgetArea, status_dock)
 
         # Scripts panel
@@ -102,14 +120,36 @@ class GUI(QMainWindow):
         self.load_scripts_button.clicked.connect(self.loadScripts)
         scripts_layout.addWidget(self.load_scripts_button)      
         
-        # (TODO: add run button or script output)
-        scripts_dock = QDockWidget("Experiment Script", self)
-        scripts_dock.setWidget(self.scripts_panel)
-        scripts_dock.setFloating(False)
-        scripts_dock.setMinimumWidth(300)
-        scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
+        # # (TODO: add run button or script output)
+        # scripts_dock = QDockWidget("Experiment Script", self)
+        # scripts_dock.setWidget(self.scripts_panel)
+        # scripts_dock.setFloating(False)
+        # scripts_dock.setMinimumWidth(300)
+        # scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
 
+
+        # Control Box dock (QComboBox for selecting devices)
+        # self.control_view = PortPanel()
+        # control_dock = QDockWidget()
+        # control_dock.setWidget(self.control_view)
+        # control_dock.setFloating(False)
+        # control_dock.setMinimumWidth(300)
+        # control_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # self.addDockWidget(Qt.RightDockWidgetArea, control_dock)
+
+        self.port_panel = PortPanel()
+        port_dock = QDockWidget("Port Control Panel", self)
+        port_dock.setWidget(self.port_panel)
+        port_dock.setFloating(False)
+        port_dock.setMinimumWidth(300)
+        port_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        port_dock.setFeatures(
+            QDockWidget.DockWidgetMovable | 
+            QDockWidget.DockWidgetFloatable  
+            # | QDockWidget.DockWidgetClosable
+        )
+        self.addDockWidget(Qt.RightDockWidgetArea, port_dock)
 
     def loadScripts(self):
         """Load and execute any experiment scripts."""
@@ -140,20 +180,20 @@ class GUI(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            action_reply = QMessageBox.question(
-                self, "Shutdowns",
-                "Do you want to close all valves and pumps before exiting?",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-                QMessageBox.Yes
-            )
+            # action_reply = QMessageBox.question(
+            #     self, "Shutdowns",
+            #     "Do you want to close all valves and pumps before exiting?",
+            #     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+            #     QMessageBox.Yes
+            # )
 
-            if action_reply == QMessageBox.Yes:
-                self.control_box.setAllValvesOff()
-                self.pump_controller.pumpOffAll()
-            elif action_reply == QMessageBox.No:
-                print("Leaving valves and pumps as-is.")
-            else:  # Cancel exit
-                return False
+            # if action_reply == QMessageBox.Yes:
+            #     self.control_box.setAllValvesOff()
+            #     self.pump_controller.pumpOffAll()
+            # elif action_reply == QMessageBox.No:
+            #     print("Leaving valves and pumps as-is.")
+            # else:  # Cancel exit
+            #     return False
             return True
         return False
     
@@ -170,6 +210,6 @@ class GUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication([])
-    window = GUI()
+    window = MainWindow()
     window.show()
     app.exec()  # Start the application event loop
