@@ -1,16 +1,19 @@
 ''' Custom Valve Controls Functions for GUI-CCC5 Application '''
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, QGridLayout, QTextEdit, QLabel
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, 
+    QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox,
+    QGridLayout, QTextEdit, QLabel, QApplication
 )
 from PySide6.QtGui import QColor
+from PySide6.QtCore import QRunnable, QThreadPool
 from datetime import datetime
 
-from Connection.Control_Box import ControlBox
+from Connection.Connection import Connection, Device
 
 
 class ValveController:
-    def __init__(self, valve_panel=None, logger=None, control_box=None):
+    def __init__(self, valve_panel=None, logger=None, control_box: Connection = None):
         self.btn_on_color = "rgb(255, 255, 55)"     # Yellow for "OPEN"
         self.btn_off_color = "rgb(230, 230, 230)"   # Light gray for "CLOSED"
         self.buttons = []                           # List to hold button references
@@ -46,25 +49,44 @@ class ValveController:
 
     def valveOnAll(self):
         """Open all valves by toggling all buttons on."""
-        self.control_box.setAllValvesOn()
-        
         for btn in self.buttons:
             btn.setChecked(True) 
+        QApplication.processEvents()  # Ensure UI updates immediately    
         print("All valves ON")
 
+        # Update control box state
+        if self.control_box:
+            for valve_id in self.control_box.getConnectedValveIds():
+                self.control_box.setValveState(valve_id, True)
+
+            task = FlushTask(self.control_box.flush)
+            QThreadPool.globalInstance().start(task)  # Run flush in a separate thread
+
+        
 
     def valveOffAll(self):
         """Close all valves by toggling all buttons off."""
-        self.control_box.setAllValvesOff()
-        
+
         for btn in self.buttons:
             btn.setChecked(False) 
+        QApplication.processEvents()
         print("All valves OFF")
 
 
+        if self.control_box:
+            for valve_id in self.control_box.getConnectedValveIds():
+                self.control_box.setValveState(valve_id, False)
+            # self.control_box.flush()
+
+            task = FlushTask(self.control_box.flush)
+            QThreadPool.globalInstance().start(task)  # Run flush in a separate thread
+
+        
+
     
 class PumpController:
-    def __init__(self, pump_panel=None, logger=None):
+    def __init__(self, pump_panel=None, logger=None, control_box: Connection = None):
+        self.control_box = control_box if control_box is not None else Connection()
         self.btn_on_color = "rgb(255, 255, 55)"     # Yellow for "OPEN"
         self.btn_off_color = "rgb(230, 230, 230)"   # Light gray for "CLOSED"
         self.buttons = []                           # List to hold button references
@@ -102,3 +124,12 @@ class PumpController:
             if btn.isChecked():
                 btn.setChecked(False)
         print("All pumps OFF")
+
+
+class FlushTask(QRunnable):
+    def __init__(self, flush_function):
+        super().__init__()
+        self.flush_function = flush_function
+
+    def run(self):
+        self.flush_function()

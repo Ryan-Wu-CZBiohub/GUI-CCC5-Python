@@ -10,8 +10,8 @@ from PySide6.QtGui import QPalette, QColor, QIcon
 from datetime import datetime
 
 # Importing the custom valve controls functions
-from Connection.Control_Box import ControlBox
-from Controls.Controls import ValveController, PumpController
+from Connection.Connection import Connection, Device
+from Control.Panel_Controller import ValveController, PumpController
 from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
 
 
@@ -30,16 +30,13 @@ class MainWindow(QMainWindow):
         # Initialize controllers
 
         # # Control Box for managing devices
-        # self.control_box = ControlBox()
-        # # connect to USB devices
-        # self.control_box.scanForDevices()
-        # # connect to all available devices
-        # self.control_box.connectToAllDevices()
-        # self.control_box.connectToDevice("COM4")
-        # self.control_box.connectToDevice("COM5")
-        # self.control_box.connectToDevice("COM6")
-        # Valve Controller for managing valves
+        self.control_box = Connection()
+        self.control_box.scanForDevices()
 
+        self.valve_controller = ValveController(control_box=self.control_box)
+        self.pump_controller = PumpController(control_box=self.control_box)
+        self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
+        
 
         # Central widget & dock layout
         central_widget = QWidget()
@@ -66,10 +63,10 @@ class MainWindow(QMainWindow):
         valve_layout.setContentsMargins(5, 5, 5, 5)
 
 
-        self.valve_panel = ValvePanel(logger=self.logMessage)
+        self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
         valve_layout.addWidget(self.valve_panel)
 
-        valve_dock = QDockWidget("Valve Control Panel", self)
+        valve_dock = QDockWidget("Valve Controls", self)
         valve_dock.setWidget(valve_widget)
         valve_dock.setFloating(False)
         valve_dock.setMinimumWidth(1300)
@@ -81,15 +78,15 @@ class MainWindow(QMainWindow):
         )   
         self.addDockWidget(Qt.LeftDockWidgetArea, valve_dock)
 
-        # Pump control panel
-        self.pump_panel = PumpPanel(logger=self.logMessage)
-        pump_dock = QDockWidget("Pump Control Panel", self)
-        pump_dock.setWidget(self.pump_panel)
-        pump_dock.setFloating(False)
-        pump_dock.setMinimumWidth(300)
-        pump_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        pump_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
-        self.addDockWidget(Qt.RightDockWidgetArea, pump_dock)
+        # # Pump control panel
+        # self.pump_panel = PumpPanel(logger=self.logMessage, control_box=self.control_box)
+        # pump_dock = QDockWidget("Pump Control Panel", self)
+        # pump_dock.setWidget(self.pump_panel)
+        # pump_dock.setFloating(False)
+        # pump_dock.setMinimumWidth(300)
+        # pump_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # pump_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        # self.addDockWidget(Qt.RightDockWidgetArea, pump_dock)
 
         # Status log box
         status_widget = QWidget()
@@ -120,26 +117,22 @@ class MainWindow(QMainWindow):
         self.load_scripts_button.clicked.connect(self.loadScripts)
         scripts_layout.addWidget(self.load_scripts_button)      
         
-        # # (TODO: add run button or script output)
-        # scripts_dock = QDockWidget("Experiment Script", self)
-        # scripts_dock.setWidget(self.scripts_panel)
-        # scripts_dock.setFloating(False)
-        # scripts_dock.setMinimumWidth(300)
-        # scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        # self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
+        # (TODO: add run button or script output)
+        scripts_dock = QDockWidget("Experiment Script", self)
+        scripts_dock.setWidget(self.scripts_panel)
+        scripts_dock.setFloating(False)
+        scripts_dock.setMinimumWidth(300)
+        scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        scripts_dock.setFeatures(
+            QDockWidget.DockWidgetMovable | 
+            QDockWidget.DockWidgetFloatable  
+            # | QDockWidget.DockWidgetClosable
+        )
+        self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
 
-
-        # Control Box dock (QComboBox for selecting devices)
-        # self.control_view = PortPanel()
-        # control_dock = QDockWidget()
-        # control_dock.setWidget(self.control_view)
-        # control_dock.setFloating(False)
-        # control_dock.setMinimumWidth(300)
-        # control_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        # self.addDockWidget(Qt.RightDockWidgetArea, control_dock)
-
-        self.port_panel = PortPanel()
-        port_dock = QDockWidget("Port Control Panel", self)
+        # Port information panel
+        self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
+        port_dock = QDockWidget("Port Information", self)
         port_dock.setWidget(self.port_panel)
         port_dock.setFloating(False)
         port_dock.setMinimumWidth(300)
@@ -184,7 +177,7 @@ class MainWindow(QMainWindow):
             #     self, "Shutdowns",
             #     "Do you want to close all valves and pumps before exiting?",
             #     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-            #     QMessageBox.Yes
+            #     QMessageBox.Yes2
             # )
 
             # if action_reply == QMessageBox.Yes:
