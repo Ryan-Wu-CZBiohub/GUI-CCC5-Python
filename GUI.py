@@ -3,11 +3,12 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, 
     QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, 
-    QGridLayout, QTextEdit, QLabel, QDockWidget, QFileDialog, QMainWindow
+    QGridLayout, QTextEdit, QLabel, QDockWidget, QFileDialog, QMainWindow, QDialog
     )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPalette, QColor, QIcon, QTextCursor
+from PySide6.QtGui import QPalette, QColor, QIcon, QTextCursor, QKeySequence, QPixmap
 from datetime import datetime
+import os
 
 # Importing the custom valve controls functions
 from Connection.Connection import Connection, Device
@@ -33,7 +34,9 @@ class MainWindow(QMainWindow):
         self.control_box = Connection()
         self.control_box.scanForDevices()
 
+        self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
         self.valve_controller = ValveController(control_box=self.control_box)
+        
         self.pump_controller = PumpController(control_box=self.control_box)
         self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
         
@@ -46,24 +49,37 @@ class MainWindow(QMainWindow):
         central_layout.setContentsMargins(0, 0, 0, 0)
         central_layout.setSpacing(0)
 
-        # main_layout = QVBoxLayout(central_widget)
-        # main_layout.setContentsMargins(0, 0, 0, 0)
-        # main_layout.setSpacing(0)
-
         # Background palette
         palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(230, 230, 230))
+        palette.setColor(QPalette.Window, QColor(230, 230, 230))  # light gray background
 
-      
-        # Valve control panel
-        # self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
+        # Menu bar
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("&File")
+        new_action = file_menu.addAction("New")
+
+        # newAction.triggered.connect(self.NewChip)
+        new_action.setShortcut(QKeySequence("Ctrl+N"))
+
+        open_action = file_menu.addAction("Open")
+        open_action.triggered.connect(self.openFile)
+        open_action.setShortcut(QKeySequence("Ctrl+O"))
+
+        save_action = file_menu.addAction("Save")
+        # save_action.triggered.connect(self.saveFile)
+        save_action.setShortcut(QKeySequence("Ctrl+S"))
+
+        save_as_action = file_menu.addAction("Save As")
+        save_as_action.setShortcut(QKeySequence("Ctrl+Shift+S"))
+
+        exit_action = file_menu.addAction("Exit")
+        exit_action.triggered.connect(self.close)
+        exit_action.setShortcut(QKeySequence("Ctrl+Q"))
+        
 
         valve_widget = QWidget()
         valve_layout = QVBoxLayout(valve_widget)
         valve_layout.setContentsMargins(5, 5, 5, 5)
-
-
-        self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
         valve_layout.addWidget(self.valve_panel)
 
         valve_dock = QDockWidget("Valve Controls", self)
@@ -220,6 +236,48 @@ class MainWindow(QMainWindow):
             event.ignore()
 
 
+    # menu functions
+    def openFile(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Open File", "", "All Files (*)"
+        )
+        if not file_name:
+            return
+
+        try:
+            ext = os.path.splitext(file_name)[1].lower()
+
+            preview_window = QWidget(self)
+            preview_window.setWindowTitle(f"Preview: {os.path.basename(file_name)}")
+            preview_window.setAttribute(Qt.WA_DeleteOnClose)
+            preview_window.setWindowFlag(Qt.Window)
+            layout = QVBoxLayout(preview_window)
+
+            if ext in [".png", ".jpg", ".jpeg", ".bmp", ".gif"]:
+                pixmap = QPixmap(file_name)
+                if pixmap.isNull():
+                    raise Exception("Failed to load image.")
+                label = QLabel()
+                label.setPixmap(pixmap)
+                label.setScaledContents(True)
+                label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+                label.setMinimumSize(400, 300)
+                layout.addWidget(label)
+            else:
+                with open(file_name, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                text_edit = QTextEdit()
+                text_edit.setPlainText(content)
+                text_edit.setReadOnly(True)
+                layout.addWidget(text_edit)
+
+            preview_window.resize(1600, 900)
+            preview_window.show()
+
+            self.logMessage(f"Opened preview: {file_name}")
+
+        except Exception as e:
+            self.logMessage(f"Error opening file: {e}")
 
 if __name__ == "__main__":
     app = QApplication([])
