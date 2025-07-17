@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QTextEdit, QLabel, QDockWidget, QFileDialog, QMainWindow
     )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPalette, QColor, QIcon
+from PySide6.QtGui import QPalette, QColor, QIcon, QTextCursor
 from datetime import datetime
 
 # Importing the custom valve controls functions
@@ -95,6 +95,7 @@ class MainWindow(QMainWindow):
 
         self.status_box = QTextEdit()
         self.status_box.setReadOnly(True)
+        self.status_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         status_layout.addWidget(self.status_box)
 
         status_dock = QDockWidget("Status Log", self)
@@ -106,7 +107,7 @@ class MainWindow(QMainWindow):
             QDockWidget.DockWidgetFloatable  
             # | QDockWidget.DockWidgetClosable
         )   
-        self.addDockWidget(Qt.BottomDockWidgetArea, status_dock)
+        self.addDockWidget(Qt.RightDockWidgetArea, status_dock)
 
         # Scripts panel
         self.scripts_panel = QWidget()
@@ -115,7 +116,11 @@ class MainWindow(QMainWindow):
 
         self.load_scripts_button = QPushButton("Load Script")
         self.load_scripts_button.clicked.connect(self.loadScripts)
-        scripts_layout.addWidget(self.load_scripts_button)      
+        scripts_layout.addWidget(self.load_scripts_button)     
+
+        self.run_script_button = QPushButton("Run Script")
+        self.run_script_button.clicked.connect(self.runScript)
+        scripts_layout.addWidget(self.run_script_button) 
         
         # (TODO: add run button or script output)
         scripts_dock = QDockWidget("Experiment Script", self)
@@ -131,18 +136,18 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
 
         # Port information panel
-        self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
-        port_dock = QDockWidget("Port Information", self)
-        port_dock.setWidget(self.port_panel)
-        port_dock.setFloating(False)
-        port_dock.setMinimumWidth(300)
-        port_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        port_dock.setFeatures(
-            QDockWidget.DockWidgetMovable | 
-            QDockWidget.DockWidgetFloatable  
+        # self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
+        # port_dock = QDockWidget("Port Information", self)
+        # port_dock.setWidget(self.port_panel)
+        # port_dock.setFloating(False)
+        # port_dock.setMinimumWidth(300)
+        # port_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # port_dock.setFeatures(
+        #     QDockWidget.DockWidgetMovable | 
+        #     QDockWidget.DockWidgetFloatable  
             # | QDockWidget.DockWidgetClosable
-        )
-        self.addDockWidget(Qt.RightDockWidgetArea, port_dock)
+        # )
+        # self.addDockWidget(Qt.RightDockWidgetArea, port_dock)
 
     def loadScripts(self):
         """Load and execute any experiment scripts."""
@@ -152,17 +157,32 @@ class MainWindow(QMainWindow):
         if file_name:
             try:
                 with open(file_name, 'r') as file:
-                    script_content = file.read()
-                exec(script_content, {"gui": self})
-                self.logMessage(f"Script '{file_name}' loaded and executed.")
+                    self.script_code = file.read()
+                self.loaded_script_path = file_name
+                # self.status_box.clear()
+                self.status_box.append("───────────────────────────────")
+                self.run_script_button.setEnabled(True)
+                self.logMessage(f"{file_name} loaded successfully.")
             except Exception as e:
                 self.logMessage(f"Error loading script: {e}")
+                self.run_script_button.setEnabled(False)
 
+    def runScript(self):
+        """Run the loaded script."""
+        if not self.script_code:
+            self.logMessage("No script loaded.")
+            return
+        try:
+            exec(self.script_code, {"gui": self})
+            name = getattr(self, "loaded_script_path", "Unknown Script")
+            self.logMessage(f"{name} executed successfully.")
+        except Exception as e:
+            self.logMessage(f"Error running script: {e}")
 
     def logMessage(self, message: str):
-        """Log a message to the status box."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.status_box.append(f"{timestamp} {message}")
+        self.status_box.moveCursor(QTextCursor.End)
 
     
     def promptForClose(self):
