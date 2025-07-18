@@ -45,7 +45,7 @@ class Connection:
                 if port in self.PORT_TO_START:
                     new_device.start_number = self.PORT_TO_START[port]
                 else:
-                    print(f"⚠ Port {port} not in PORT_TO_START, assigning start_number = 0")
+                    print(f"Port {port} not in PORT_TO_START, assigning start_number = 0")
                     new_device.start_number = 0 
 
                 new_device.connect()

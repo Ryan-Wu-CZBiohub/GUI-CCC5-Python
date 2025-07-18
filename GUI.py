@@ -1,16 +1,30 @@
-''' Custom GUI Class for CCC5 Control Application '''
+"""Custom GUI Class for CCC5 Control Application"""
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, 
-    QWidget, QMenuBar, QSizePolicy, QStatusBar, QToolBar, QMessageBox, 
-    QGridLayout, QTextEdit, QLabel, QDockWidget, QFileDialog, QMainWindow, QDialog
-    )
+    QApplication,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QMenuBar,
+    QSizePolicy,
+    QStatusBar,
+    QToolBar,
+    QMessageBox,
+    QGridLayout,
+    QTextEdit,
+    QLabel,
+    QDockWidget,
+    QFileDialog,
+    QMainWindow,
+    QDialog,
+)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette, QColor, QIcon, QTextCursor, QKeySequence, QPixmap
 from datetime import datetime
 import os
 
-# Importing the custom valve controls functions
 from Connection.Connection import Connection, Device
 from Control.Panel_Controller import ValveController, PumpController
 from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
@@ -19,29 +33,40 @@ from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.main_window()
+        self.initialize_controllers()
+        self.setup_layout()
+        self.create_menu_bar()
+        self.create_dock_widgets()
 
-        # Window settings
+    def main_window(self):
+        """Main window settings."""
         self.setWindowTitle("Command Window")
         self.setWindowIcon(QIcon("Media/Logos/CZI-CZ-Biohub-Mark-CHI-Color-RGB.png"))
         self.resize(1600, 900)
         self.setMinimumSize(1600, 900)
-        # self.setStyleSheet("background-color: rgb(230, 230, 230);")   # light gray background
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(230, 230, 230))  
+        # self.setStyleSheet(
+        #     "background-color: rgb(230, 230, 230);"
+        # )  # light gray background
 
-
-        # Initialize controllers
-
-        # # Control Box for managing devices
+    def initialize_controllers(self):
+        """Initialize the controllers and panels for the application."""
         self.control_box = Connection()
         self.control_box.scanForDevices()
-
-        self.valve_panel = ValvePanel(logger=self.logMessage, control_box=self.control_box)
+        self.valve_panel = ValvePanel(
+            logger=self.logMessage, control_box=self.control_box
+        )
         self.valve_controller = ValveController(control_box=self.control_box)
-        
-        self.pump_controller = PumpController(control_box=self.control_box)
-        self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
-        
 
-        # Central widget & dock layout
+        self.pump_controller = PumpController(control_box=self.control_box)
+        self.port_panel = PortPanel(
+            logger=self.logMessage, control_box=self.control_box
+        )
+
+    def setup_layout(self):
+        """Setup the main layout of the application."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         central_layout = QHBoxLayout(central_widget)
@@ -49,34 +74,33 @@ class MainWindow(QMainWindow):
         central_layout.setContentsMargins(0, 0, 0, 0)
         central_layout.setSpacing(0)
 
-        # Background palette
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(230, 230, 230))  # light gray background
-
-        # Menu bar
+    def create_menu_bar(self):
+        """Create the menu bar for the application."""
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("&File")
-        new_action = file_menu.addAction("New")
 
-        # newAction.triggered.connect(self.NewChip)
+        new_action = file_menu.addAction("New")
         new_action.setShortcut(QKeySequence("Ctrl+N"))
 
         open_action = file_menu.addAction("Open")
-        open_action.triggered.connect(self.openFile)
         open_action.setShortcut(QKeySequence("Ctrl+O"))
+        open_action.triggered.connect(self.openFile)
 
         save_action = file_menu.addAction("Save")
-        # save_action.triggered.connect(self.saveFile)
         save_action.setShortcut(QKeySequence("Ctrl+S"))
+        # save_action.triggered.connect(self.saveFile)
 
         save_as_action = file_menu.addAction("Save As")
         save_as_action.setShortcut(QKeySequence("Ctrl+Shift+S"))
+        # save_as_action.triggered.connect(self.saveFileAs)
 
         exit_action = file_menu.addAction("Exit")
-        exit_action.triggered.connect(self.close)
         exit_action.setShortcut(QKeySequence("Ctrl+Q"))
-        
+        exit_action.triggered.connect(self.close)
 
+    def create_dock_widgets(self):
+        """Create the dock widgets for the application."""
+        # Valve control panel
         valve_widget = QWidget()
         valve_layout = QVBoxLayout(valve_widget)
         valve_layout.setContentsMargins(5, 5, 5, 5)
@@ -88,10 +112,10 @@ class MainWindow(QMainWindow):
         valve_dock.setMinimumWidth(1300)
         valve_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         valve_dock.setFeatures(
-            QDockWidget.DockWidgetMovable | 
-            QDockWidget.DockWidgetFloatable  
+            QDockWidget.DockWidgetMovable
+            | QDockWidget.DockWidgetFloatable
             # | QDockWidget.DockWidgetClosable
-        )   
+        )
         self.addDockWidget(Qt.LeftDockWidgetArea, valve_dock)
 
         # # Pump control panel
@@ -104,7 +128,7 @@ class MainWindow(QMainWindow):
         # pump_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         # self.addDockWidget(Qt.RightDockWidgetArea, pump_dock)
 
-        # Status log box
+        # Status log panel
         status_widget = QWidget()
         status_layout = QVBoxLayout(status_widget)
         status_layout.setContentsMargins(5, 5, 5, 5)
@@ -119,10 +143,10 @@ class MainWindow(QMainWindow):
         status_dock.setFloating(False)
         status_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         status_dock.setFeatures(
-            QDockWidget.DockWidgetMovable | 
-            QDockWidget.DockWidgetFloatable  
+            QDockWidget.DockWidgetMovable
+            | QDockWidget.DockWidgetFloatable
             # | QDockWidget.DockWidgetClosable
-        )   
+        )
         self.addDockWidget(Qt.RightDockWidgetArea, status_dock)
 
         # Scripts panel
@@ -132,12 +156,12 @@ class MainWindow(QMainWindow):
 
         self.load_scripts_button = QPushButton("Load Script")
         self.load_scripts_button.clicked.connect(self.loadScripts)
-        scripts_layout.addWidget(self.load_scripts_button)     
+        scripts_layout.addWidget(self.load_scripts_button)
 
         self.run_script_button = QPushButton("Run Script")
         self.run_script_button.clicked.connect(self.runScript)
-        scripts_layout.addWidget(self.run_script_button) 
-        
+        scripts_layout.addWidget(self.run_script_button)
+
         # (TODO: add run button or script output)
         scripts_dock = QDockWidget("Experiment Script", self)
         scripts_dock.setWidget(self.scripts_panel)
@@ -145,8 +169,8 @@ class MainWindow(QMainWindow):
         scripts_dock.setMinimumWidth(300)
         scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         scripts_dock.setFeatures(
-            QDockWidget.DockWidgetMovable | 
-            QDockWidget.DockWidgetFloatable  
+            QDockWidget.DockWidgetMovable
+            | QDockWidget.DockWidgetFloatable
             # | QDockWidget.DockWidgetClosable
         )
         self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
@@ -159,9 +183,9 @@ class MainWindow(QMainWindow):
         # port_dock.setMinimumWidth(300)
         # port_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         # port_dock.setFeatures(
-        #     QDockWidget.DockWidgetMovable | 
-        #     QDockWidget.DockWidgetFloatable  
-            # | QDockWidget.DockWidgetClosable
+        #     QDockWidget.DockWidgetMovable |
+        #     QDockWidget.DockWidgetFloatable
+        # | QDockWidget.DockWidgetClosable
         # )
         # self.addDockWidget(Qt.RightDockWidgetArea, port_dock)
 
@@ -172,7 +196,7 @@ class MainWindow(QMainWindow):
         )
         if file_name:
             try:
-                with open(file_name, 'r') as file:
+                with open(file_name, "r") as file:
                     self.script_code = file.read()
                 self.loaded_script_path = file_name
                 # self.status_box.clear()
@@ -200,13 +224,13 @@ class MainWindow(QMainWindow):
         self.status_box.append(f"{timestamp} {message}")
         self.status_box.moveCursor(QTextCursor.End)
 
-    
     def promptForClose(self):
         reply = QMessageBox.question(
-            self, 'Confirm Close',
+            self,
+            "Confirm Close",
             "Are you sure you want to close the application?",
             QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             # action_reply = QMessageBox.question(
@@ -225,7 +249,6 @@ class MainWindow(QMainWindow):
             #     return False
             return True
         return False
-    
 
     def closeEvent(self, event):
         if self.promptForClose():
@@ -234,7 +257,6 @@ class MainWindow(QMainWindow):
         else:
             print("Close event ignored.")
             event.ignore()
-
 
     # menu functions
     def openFile(self):
@@ -264,7 +286,7 @@ class MainWindow(QMainWindow):
                 label.setMinimumSize(400, 300)
                 layout.addWidget(label)
             else:
-                with open(file_name, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                 text_edit = QTextEdit()
                 text_edit.setPlainText(content)
@@ -278,6 +300,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.logMessage(f"Error opening file: {e}")
+
 
 if __name__ == "__main__":
     app = QApplication([])
