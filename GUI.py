@@ -24,6 +24,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette, QColor, QIcon, QTextCursor, QKeySequence, QPixmap
 from datetime import datetime
 import os
+import json
 
 from Connection.Connection import Connection, Device
 from Control.Panel_Controller import ValveController, PumpController
@@ -79,20 +80,20 @@ class MainWindow(QMainWindow):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("&File")
 
-        new_action = file_menu.addAction("New")
-        new_action.setShortcut(QKeySequence("Ctrl+N"))
+        # new_action = file_menu.addAction("New")
+        # new_action.setShortcut(QKeySequence("Ctrl+N"))
 
         open_action = file_menu.addAction("Open")
         open_action.setShortcut(QKeySequence("Ctrl+O"))
         open_action.triggered.connect(self.openFile)
 
-        save_action = file_menu.addAction("Save")
-        save_action.setShortcut(QKeySequence("Ctrl+S"))
-        # save_action.triggered.connect(self.saveFile)
+        save_action = file_menu.addAction("Load")
+        save_action.setShortcut(QKeySequence("Ctrl+L"))
+        save_action.triggered.connect(self.loadFile)
 
-        save_as_action = file_menu.addAction("Save As")
-        save_as_action.setShortcut(QKeySequence("Ctrl+Shift+S"))
-        # save_as_action.triggered.connect(self.saveFileAs)
+        save_as_action = file_menu.addAction("Save")
+        save_as_action.setShortcut(QKeySequence("Ctrl+S"))
+        save_as_action.triggered.connect(self.saveFileAs)
 
         exit_action = file_menu.addAction("Exit")
         exit_action.setShortcut(QKeySequence("Ctrl+Q"))
@@ -300,6 +301,67 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.logMessage(f"Error opening file: {e}")
+
+
+    def saveFileAs(self):
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Valve Layout",
+            "",
+            "Valve Layout Files (*.json);;All Files (*)"
+        )
+        if not file_name:
+            return
+
+        try:
+            layout_data = {
+                "valves": {
+                    str(valve_id): list(pos)
+                    for valve_id, pos in self.valve_panel.valve_controller.positions.items()
+                }
+            }
+            with open(file_name, "w") as f:
+                json.dump(layout_data, f, indent=2)
+
+            self.logMessage(f"Valve layout saved to: {file_name}")
+        except Exception as e:
+            self.logMessage(f"Error saving layout: {e}")
+
+    def loadFile(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+        self,
+        "Open Valve Layout",
+        "",
+        "Valve Layout Files (*.json);;All Files (*)"
+        )
+        if not file_name:
+            return
+
+        try:
+            with open(file_name, "r") as f:
+                layout_data = json.load(f)
+
+            if "valves" not in layout_data:
+                raise ValueError("Invalid layout file format.")
+
+            for valve_id_str, position in layout_data["valves"].items():
+                valve_id = int(valve_id_str)
+                row, col = position
+
+                button = self.valve_panel.valve_controller.buttons.get(valve_id)
+                if button:
+                    # Clear old position
+                    old_row, old_col = self.valve_panel.valve_controller.positions[valve_id]
+                    self.valve_panel.slot_grid[(old_row, old_col)].setValveButton(QWidget())
+                    
+                    # Set to new position
+                    self.valve_panel.slot_grid[(row, col)].setValveButton(button)
+                    self.valve_panel.valve_controller.positions[valve_id] = (row, col)
+
+            self.logMessage(f"Valve layout loaded from: {file_name}")
+
+        except Exception as e:
+            self.logMessage(f"Error loading layout: {e}")
 
 
 if __name__ == "__main__":

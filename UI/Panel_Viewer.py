@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QLabel, QPushButton, \
-    QListWidget, QListWidgetItem, QSpinBox, QComboBox, QHBoxLayout, QSizePolicy, QButtonGroup, QMenu, QInputDialog
+    QListWidget, QListWidgetItem, QSpinBox, QComboBox, QHBoxLayout, QSizePolicy, QButtonGroup, QMenu, QInputDialog, QSpacerItem, QStackedLayout
 from PySide6.QtCore import QTimer, QSize, Qt, QMimeData
 from PySide6.QtGui import QDrag
 from typing import Optional, List
@@ -9,6 +9,23 @@ import math
 
 from Connection.Connection import Connection, Device
 from Control.Panel_Controller import ValveController, PumpController
+
+
+class ValveSlots(QWidget):
+    def __init__(self, row, col, valve_panel):
+        super().__init__()
+        self.row = row
+        self.col = col
+        self.valve_panel = valve_panel
+        self.layout = QStackedLayout(self)
+        self.setLayout(self.layout)
+
+    def setValveButton(self, button: QPushButton):
+        while self.layout.count():
+            w = self.layout.widget(0)
+            self.layout.removeWidget(w)
+            w.setParent(None)  # Remove from layout but keep in memory
+        self.layout.addWidget(button)
 
 
 
@@ -73,10 +90,23 @@ class ValvePanel(QWidget):
         #         self.valve_controller.buttons.append(btn)
         #         # self.valve_controller.buttons[valve_id] = btn
         #     valve_panel_layout.addLayout(row_layout)
+
+        self.rows = 15
+        self.cols = 12
+        self.slot_grid = {}
+
+        for i in range(self.rows):
+            for j in range(self.cols):
+                slot = ValveSlots(i, j, self)
+                self.grid_layout.addWidget(slot, i, j)
+                self.slot_grid[(i, j)] = slot
             
-        for i in range(8):
-            for j in range(12):
-                valve_id = i * 12 + j
+        for i in range(self.rows):
+            for j in range(self.cols):
+                valve_id = i * self.cols + j
+                if valve_id >= 48:    #### Change this to the number of valves you want ####
+                    break
+                
                 btn = DraggableValveButton(f"Valve {valve_id} - OFF", valve_id, self)
                 btn.setCheckable(True)
                 btn.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -86,7 +116,8 @@ class ValvePanel(QWidget):
                 btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
                 btn.toggled.connect(self.handleValveToggle)
 
-                self.grid_layout.addWidget(btn, i, j)
+                # self.grid_layout.addWidget(btn, i, j)
+                self.slot_grid[(i, j)].setValveButton(btn)
                 # self.valve_controller.buttons.append(btn)
                 self.valve_controller.buttons[valve_id] = btn
                 self.valve_controller.positions[valve_id] = (i, j)
@@ -107,7 +138,7 @@ class ValvePanel(QWidget):
 
         # Only two options now:
         delete_action = menu.addAction("Delete")
-        move_action = menu.addAction("Move...")
+        move_action = menu.addAction("Move")
 
         action = menu.exec_(button.mapToGlobal(pos))
 
@@ -125,57 +156,57 @@ class ValvePanel(QWidget):
 
     def moveValveDialog(self, button, valve_id):
         row, ok1 = QInputDialog.getInt(self, "Move Valve", "New Row (1-15):", 1, 1, 15)
-        col, ok2 = QInputDialog.getInt(self, "Move Valve", "New Column (1-15):", 1, 1, 15)
+        col, ok2 = QInputDialog.getInt(self, "Move Valve", "New Column (1-12):", 1, 1, 12)
 
         if ok1 and ok2:
-            self.repositionValveButton(button, row, col)
+            self.repositionValveButton(button, row - 1, col - 1)
 
     def repositionValveButton(self, button, new_row, new_col):
-        self.grid_layout.removeWidget(button)
-        self.grid_layout.addWidget(button, new_row, new_col)
+        old_row, old_col = self.valve_controller.positions[button.property("valve_id")]
+        self.slot_grid[(old_row, old_col)].setValveButton(QWidget())  # clear
+        self.slot_grid[(new_row, new_col)].setValveButton(button)
+        self.valve_controller.positions[button.property("valve_id")] = (new_row, new_col)
 
-        # Keep original valve_id
-        valve_id = button.property("valve_id")
-
-        # Update only the layout mapping, not the ID or text
-        self.valve_controller.positions[valve_id] = (new_row, new_col)
 
     def resetAllValves(self):
-        # Make a copy of deleted buttons so we can safely modify the original list
+        # Restore deleted valves first
         for valve_id, button in list(self.deleted_buttons):
-            # Restore default state
             button.setEnabled(True)
             button.setChecked(False)
             button.setText(f"Valve {valve_id} - OFF")
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
 
-            # Determine where to place the button
             row, col = divmod(valve_id, 12)
             self.grid_layout.addWidget(button, row, col)
-
-            # Restore tracking
             self.valve_controller.buttons[valve_id] = button
             self.valve_controller.positions[valve_id] = (row, col)
 
             button.setParent(self)
             button.show()
 
-        # Clear deleted list after full restore
         self.deleted_buttons.clear()
 
-        # Reset all visible buttons
+        # Reset moved valves to their default grid position
         for valve_id, button in self.valve_controller.buttons.items():
+            default_row, default_col = divmod(valve_id, 12)
+            self.grid_layout.removeWidget(button)
+            self.grid_layout.addWidget(button, default_row, default_col)
+
             button.setChecked(False)
             button.setEnabled(True)
             button.setVisible(True)
             button.setText(f"Valve {valve_id} - OFF")
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
+            self.valve_controller.positions[valve_id] = (default_row, default_col)
 
         self.updateStatus("All valves reset.")
 
     def updateStatus(self, message):
         if self.logger:
             self.logger(message)
+
+
+
 
 
 class PumpPanel(QWidget):
