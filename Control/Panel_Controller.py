@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QPushButton, QApplication
 from PySide6.QtGui import QColor
-from PySide6.QtCore import QRunnable, QThreadPool
+from PySide6.QtCore import QRunnable, QThreadPool, Slot
 
 from Connection.Connection import Connection
 
@@ -16,7 +16,27 @@ class ValveController:
         self.valve_panel = valve_panel
         self.logger = logger
         self.control_box = control_box
+        self.control_box.valveStateChanged.connect(self.updateButtonState)
 
+    @Slot(int, bool)
+    def updateButtonState(self, valve_id: int, state: bool):
+        """Update the button visual to reflect actual valve state."""
+        button = self.buttons.get(valve_id)
+        if not button:
+            return
+
+        # Set internal toggle state
+        button.setChecked(state)
+
+        # Update text and color
+        status = "ON" if state else "OFF"
+        color = self.btn_on_color if state else self.btn_off_color
+        button.setText(f"Valve {valve_id} - {status}")
+        button.setStyleSheet(f"color: black; background-color: {color};")
+
+        # Optional: log the update
+        if self.logger:
+            self.logger(f"Valve {valve_id} visual updated to {status}")
 
     def valveToggle(self, button: QPushButton):
         """Handle individual valve toggle."""

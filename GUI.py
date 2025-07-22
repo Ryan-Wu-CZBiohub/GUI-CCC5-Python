@@ -55,6 +55,7 @@ class MainWindow(QMainWindow):
     def initialize_controllers(self):
         """Initialize the controllers and panels for the application."""
         self.control_box = Connection()
+        print("GUI control_box ID:", id(self.control_box))
         self.control_box.scanForDevices()
         self.valve_panel = ValvePanel(
             logger=self.logMessage, control_box=self.control_box
@@ -204,14 +205,23 @@ class MainWindow(QMainWindow):
                 self.run_script_button.setEnabled(False)
 
     def runScript(self):
-        """Run the loaded script."""
-        if not self.script_code:
+        """Run the loaded experiment script."""
+        if not hasattr(self, "script_code") or not self.script_code:
             self.logMessage("No script loaded.")
             return
+
         try:
-            exec(self.script_code, {"gui": self})
-            name = getattr(self, "loaded_script_path", "Unknown Script")
-            self.logMessage(f"{name} executed successfully.")
+            # Execute the script in a controlled namespace with GUI reference
+            script_globals = {"gui": self}
+            exec(self.script_code, script_globals)
+
+            # If the script defines a runFromGui(gui) function, call it
+            if "runFromGui" in script_globals and callable(script_globals["runFromGui"]):
+                script_globals["runFromGui"](self)
+                self.logMessage("runFromGui() executed successfully.")
+            else:
+                self.logMessage("Script loaded, but no runFromGui(gui) function found.")
+
         except Exception as e:
             self.logMessage(f"Error running script: {e}")
 

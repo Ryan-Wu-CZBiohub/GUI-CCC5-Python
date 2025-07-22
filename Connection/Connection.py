@@ -2,13 +2,17 @@ from typing import Dict, List, Optional
 from serial import Serial
 from serial.tools.list_ports import comports
 from serial.tools.list_ports_common import ListPortInfo
+from PySide6.QtCore import QObject, Signal
 
 import json
 import os
 
 
-class Connection:
+class Connection(QObject):
+    valveStateChanged = Signal(int, bool)
+
     def __init__(self):
+        super().__init__()
         self.valve_states: Dict[int, bool] = {}  # Global valve state map
         self.devices: List[Device] = []             # List of connected Device instances
         config_path = "Connection/Valve_Port_Map.json"
@@ -74,6 +78,13 @@ class Connection:
 
     def setValveState(self, number: int, state: bool):
         self.valve_states[number] = state
+        self.flush()
+        self.valveStateChanged.emit(number, state)
+
+    def setValveStates(self, state_dict: Dict[int, bool]):
+        for number, state in state_dict.items():
+            self.setValveState(number, state)
+        self.flush()
 
     def getValveState(self, number: int) -> bool:
         return self.valve_states.get(number, False)
