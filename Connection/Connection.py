@@ -22,7 +22,6 @@ class Connection:
         port_infos = sorted(comports(), key=lambda p: p.device)
         seen_hwids = {d.port_info.hwid for d in self.devices if d.port_info}
 
-        # Mark disconnected devices
         for device in self.devices:
             match = next((p for p in port_infos if device.port_info and p.hwid == device.port_info.hwid), None)
             if match:
@@ -34,13 +33,12 @@ class Connection:
                 device.available = False
                 device.disconnect()
 
-        # Add new devices
         for port_info in port_infos:
             if port_info.hwid not in seen_hwids and port_info.hwid != "":
                 new_device = Device()
                 new_device.port_info = port_info
                 new_device.available = True
-                new_device.enabled = True  # Auto-enable for now
+                new_device.enabled = True 
                 port = port_info.device
                 if port in self.PORT_TO_START:
                     new_device.start_number = self.PORT_TO_START[port]

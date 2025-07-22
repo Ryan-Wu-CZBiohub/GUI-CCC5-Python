@@ -61,10 +61,8 @@ class MainWindow(QMainWindow):
         )
         self.valve_controller = ValveController(control_box=self.control_box)
 
-        self.pump_controller = PumpController(control_box=self.control_box)
-        self.port_panel = PortPanel(
-            logger=self.logMessage, control_box=self.control_box
-        )
+        # self.pump_controller = PumpController(control_box=self.control_box)
+        # self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
 
     def setup_layout(self):
         """Setup the main layout of the application."""
@@ -79,9 +77,6 @@ class MainWindow(QMainWindow):
         """Create the menu bar for the application."""
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("&File")
-
-        # new_action = file_menu.addAction("New")
-        # new_action.setShortcut(QKeySequence("Ctrl+N"))
 
         open_action = file_menu.addAction("Open")
         open_action.setShortcut(QKeySequence("Ctrl+O"))
@@ -234,6 +229,9 @@ class MainWindow(QMainWindow):
             QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
+            self.valve_controller.valveOffAll()
+            self.control_box.disconnectAll()
+            
             # action_reply = QMessageBox.question(
             #     self, "Shutdowns",
             #     "Do you want to close all valves and pumps before exiting?",

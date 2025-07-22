@@ -87,9 +87,7 @@ class ValveController:
             if btn.isVisible() and btn.isEnabled() and btn.isChecked():
                 btn.setChecked(False)
 
-            
-
-    
+# Not used in the current context, but kept for potential future use
 class PumpController:
     def __init__(self, pump_panel=None, logger=None, control_box: Connection = None):
         self.control_box = control_box if control_box is not None else Connection()
