@@ -1,9 +1,19 @@
 ''' Custom Valve and Pump Control Functions for GUI-CCC5 Application '''
 
+from multiprocessing import connection
 from PySide6.QtWidgets import QPushButton, QApplication
 from PySide6.QtGui import QColor
-from PySide6.QtCore import QRunnable, QThreadPool, Slot
+from PySide6.QtCore import QRunnable, QThreadPool, Slot, QTimer
+import traceback
+from typing import Dict, List
+import json
+import os, sys
+try:
+    BASE_DIR = os.path.dirname(__file__)
+except NameError:
+    BASE_DIR = os.getcwd()  # Fallback if __file__ is undefined
 
+sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..')))
 from Connection.Connection import Connection
 
 
@@ -20,23 +30,20 @@ class ValveController:
 
     @Slot(int, bool)
     def updateButtonState(self, valve_id: int, state: bool):
-        """Update the button visual to reflect actual valve state."""
-        button = self.buttons.get(valve_id)
-        if not button:
-            return
+        """Safely update valve button visuals from any thread."""
+        def apply_update():
+            button = self.buttons.get(valve_id)
+            if not button:
+                # print(f"[updateButtonState] No button found for valve {valve_id}")
+                return
 
-        # Set internal toggle state
-        button.setChecked(state)
+            button.setChecked(state)
+            color = self.btn_on_color if state else self.btn_off_color
+            label = "ON" if state else "OFF"
+            button.setText(f"Valve {valve_id} - {label}")
+            button.setStyleSheet(f"color: black; background-color: {color};")
 
-        # Update text and color
-        status = "ON" if state else "OFF"
-        color = self.btn_on_color if state else self.btn_off_color
-        button.setText(f"Valve {valve_id} - {status}")
-        button.setStyleSheet(f"color: black; background-color: {color};")
-
-        # Optional: log the update
-        if self.logger:
-            self.logger(f"Valve {valve_id} visual updated to {status}")
+        QTimer.singleShot(0, apply_update)  # Schedule update on the main thread
 
     def valveToggle(self, button: QPushButton):
         """Handle individual valve toggle."""
@@ -50,9 +57,10 @@ class ValveController:
 
         msg = f"Valve {valve_id} {state}"
         print(msg)
-    
-        if self.logger:
-            self.logger(msg)
+
+        # suppress logging valve state changes to status log panel
+        # if self.logger:
+        #     self.logger(msg)
 
         if self.control_box:
             # Send command to control box
@@ -60,42 +68,6 @@ class ValveController:
             self.control_box.flush()
         else:
             print("ControlBox not connected or not available.")
-
-
-    # def valveOnAll(self):
-    #     """Open all valves by toggling all buttons on."""
-    #     # for btn in self.buttons:
-    #     for btn in self.buttons.values():
-    #         btn.setChecked(True) 
-    #     QApplication.processEvents()  # Ensure UI updates immediately    
-    #     print("All valves ON")
-
-    #     # Update control box state
-    #     if self.control_box:
-    #         for valve_id in self.control_box.getConnectedValveIds():
-    #             self.control_box.setValveState(valve_id, True)
-
-    #         task = FlushTask(self.control_box.flush)
-    #         QThreadPool.globalInstance().start(task)  # Run flush in a separate thread
-
-        
-
-    # def valveOffAll(self):
-    #     """Close all valves by toggling all buttons off."""
-    #     # for btn in self.buttons:
-    #     for btn in self.buttons.values():
-    #         btn.setChecked(False) 
-    #     QApplication.processEvents()
-    #     print("All valves OFF")
-
-
-    #     if self.control_box:
-    #         for valve_id in self.control_box.getConnectedValveIds():
-    #             self.control_box.setValveState(valve_id, False)
-    #         # self.control_box.flush()
-
-    #         task = FlushTask(self.control_box.flush)
-    #         QThreadPool.globalInstance().start(task)  # Run flush in a separate thread
 
     def valveOnAll(self):
         for btn in self.buttons.values():

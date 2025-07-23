@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QSpinBox,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThreadPool, QMetaObject, QTimer, Signal, QObject, Slot
 from PySide6.QtGui import QPalette, QColor, QIcon, QTextCursor, QKeySequence, QPixmap
 from datetime import datetime
 import os
@@ -30,6 +30,7 @@ import json
 from Connection.Connection import Connection, Device
 from Control.Panel_Controller import ValveController, PumpController
 from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
+from Experiment.CCC5P2_experiment import ExperimentRunner
 
 
 class MainWindow(QMainWindow):
@@ -40,6 +41,8 @@ class MainWindow(QMainWindow):
         self.setup_layout()
         self.create_menu_bar()
         self.create_dock_widgets()
+        # self.log_signal = Signal(str)
+        # self.log_signal.connect(self.logMessage)
 
     def main_window(self):
         """Main window settings."""
@@ -160,6 +163,14 @@ class MainWindow(QMainWindow):
         self.run_script_button.clicked.connect(self.runScript)
         scripts_layout.addWidget(self.run_script_button)
 
+        # self.pause_script_button = QPushButton("Pause Script")
+        # self.pause_script_button.clicked.connect(self.pauseExperiment)
+        # scripts_layout.addWidget(self.pause_script_button)
+
+        # self.resume_script_button = QPushButton("Resume Script")
+        # self.resume_script_button.clicked.connect(self.resumeExperiment)
+        # scripts_layout.addWidget(self.resume_script_button)
+        
         # (TODO: add run button or script output)
         scripts_dock = QDockWidget("Experiment Script", self)
         scripts_dock.setWidget(self.scripts_panel)
@@ -217,19 +228,48 @@ class MainWindow(QMainWindow):
             exec(self.script_code, script_globals)
 
             # If the script defines a runFromGui(gui) function, call it
-            if "runFromGui" in script_globals and callable(script_globals["runFromGui"]):
-                script_globals["runFromGui"](self)
-                self.logMessage("runFromGui() executed successfully.")
-            else:
-                self.logMessage("Script loaded, but no runFromGui(gui) function found.")
+            self.logMessage(f"Running {self.loaded_script_path} from script...")
+            runner = ExperimentRunner(self)
+            QThreadPool.globalInstance().start(runner)
+
+
+            # if "runFromGui" in script_globals and callable(script_globals["runFromGui"]):
+            #     script_globals["runFromGui"](self)
+            #     self.logMessage("runFromGui() executed successfully.")
+            # else:
+            #     self.logMessage("Script loaded, but no runFromGui(gui) function found.")
 
         except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
             self.logMessage(f"Error running script: {e}")
+            self.logMessage(tb)
 
+    # def logMessage(self, message: str):
+    #     """Log a message to the status box with a timestamp."""
+    #     def _appendToStatus():
+    #         print(f"[MainWindow] logMessage triggered: {message}") 
+    #         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #         self.status_box.append(f"{timestamp} {message}")
+    #         self.status_box.moveCursor(QTextCursor.End)
+
+    #     QTimer.singleShot(0, _appendToStatus)  # Ensure logging happens in the main thread
+    @Slot(str)
     def logMessage(self, message: str):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[MainWindow] logMessage triggered: {message}")  # Debug print
+        self.status_box.append(f"{timestamp} {message}")
+        self.status_box.moveCursor(QTextCursor.End)
+
+    def _appendToStatus(self, message: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.status_box.append(f"{timestamp} {message}")
         self.status_box.moveCursor(QTextCursor.End)
+
+    # def logMessage(self, message: str):
+    #     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #     self.status_box.append(f"{timestamp} {message}")
+    #     self.status_box.moveCursor(QTextCursor.End)
 
     def promptForClose(self):
         reply = QMessageBox.question(

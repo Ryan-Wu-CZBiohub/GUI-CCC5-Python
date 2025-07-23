@@ -13,7 +13,9 @@ Program flow:
 import json
 import time
 import datetime
+from threading import Event
 from typing import List, Dict
+from PySide6.QtCore import QThreadPool, Slot, QRunnable, QTimer
 import sys
 import os
 import traceback
@@ -24,7 +26,6 @@ except NameError:
 
 sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..')))
 from Connection.Connection import Connection
-
 
 ## === Experiment Configuration ===
 inputValve = [24] + list(range(46, 27, -1))  # 24, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
@@ -112,6 +113,8 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
         while datetime.datetime.now() < scheduled_time:
             time.sleep(0.5)
 
+        # TODO: Pause check
+
         row_idx = row_num - 1
         mux_idx = col_num - 1
         valves = valveID
@@ -167,8 +170,10 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
         for bypass_valve in valves["bypass"]:
             connection.setValveState(bypass_valve, False)
 
-        log.append([input_valve, row_num, col_num, side, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
-        print(f"Row {row_num}, Column {col_num}, Side {side} - Input Valve {input_valve} fed at {log[-1][-1]}")
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = [input_valve, row_num, col_num, side, timestamp]
+        log.append(log_entry)
+        print(f"{timestamp} → Feed Input Valve {input_valve} → Row {row_num}, Column {col_num}, Side {side}")
 
     return log
 
@@ -188,38 +193,86 @@ def runFromGui(gui, delay_min: float = 0):
         print("Has control_box:", hasattr(gui, "control_box"))
         print("Has logMessage:", hasattr(gui, "logMessage"))
 
-        expMatrix = generateExperimentMatrix()
-        connection = gui.control_box
-        print("Experiment using control_box ID:", id(gui.control_box))
-        log = runExperimentMatrix(connection, expMatrix, delay_min=delay_min, bypass_on=False)
-        gui.logMessage("Experiment completed.")
-        for row in log:
-            gui.logMessage(f"Row {row[1]} Col {row[2]} → Valve {row[0]} at {row[4]}")
+        gui.logMessage("Starting experiment in background...")
+        runner = ExperimentRunner(gui, delay_min=delay_min)
+        QThreadPool.globalInstance().start(runner)
+
     except Exception as e:
         error_msg = f"Error running experiment: {e}"
         tb = traceback.format_exc()
         gui.logMessage(error_msg)
         gui.logMessage(tb)
         print(tb)
+
+
+class ExperimentRunner(QRunnable):
+    def __init__(self, gui, delay_min=0):
+        super().__init__()
+        self.gui = gui
+        self.delay_min = delay_min
+        self._pause_event = Event()
+        self._pause_event.set()  # Start in unpaused state
+
+    @Slot()
+    def run(self):
+        try:
+            from Experiment.CCC5P2_experiment import generateExperimentMatrix, runExperimentMatrix
+
+            matrix = generateExperimentMatrix()
+            connection = self.gui.control_box
+            log = runExperimentMatrix(connection, matrix, delay_min=self.delay_min, bypass_on=False)
+            
+            print(f"[Runner] Queuing log: {msg}")
+            # Safely log completion message
+            QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment completed."))
+
+            # Safely log each feed entry
+            for row in log:
+                msg = f"Row {row[1]} Col {row[2]}, Side {row[3]} - Input Valve {row[0]} fed at {row[4]}"
+                # print statement for debugging
+
+                print(msg)
+                QTimer.singleShot(0, lambda m=msg: self.gui.logMessage(m))
+
+        except Exception as e:
+            tb = traceback.format_exc()
+            QTimer.singleShot(0, lambda: self.gui.logMessage(f"Experiment failed: {e}"))
+            QTimer.singleShot(0, lambda: self.gui.logMessage(tb))
         
+    def pause(self):
+        """Pause the experiment."""
+        self._pause_event.clear()
+        QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment paused."))
+
+    def resume(self):
+        """Resume the experiment."""
+        self._pause_event.set()
+        QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment resumed."))
+
+    def is_paused(self):
+        """Check if the experiment is paused."""
+        return not self._pause_event.is_set()    
+
 
 def main():
-    expMatrix = generateExperimentMatrix()
-    saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
+    use_test = False
 
-    test_matrix = [
-    [0, 46, 1, 1, 2, 0],
-    [1, 46, 1, 2, 2, 0],
-    [2, 46, 1, 3, 2, 0],
-    [3, 46, 1, 4, 2, 0],
-]
-
+    if use_test:
+        expMatrix = [
+            [0, 46, 1, 1, 2, 0],
+            [1, 46, 1, 2, 2, 0],
+            [2, 46, 1, 3, 2, 0],
+            [3, 46, 1, 4, 2, 0],
+        ]
+    else:
+        expMatrix = generateExperimentMatrix()
+        saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
 
     connect = Connection()
     connect.scanForDevices()
 
-    # log = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False)
-    log = runExperimentMatrix(connect, test_matrix, delay_min=0, bypass_on=False)
+    log = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False)
+    # log = runExperimentMatrix(connect, test_matrix, delay_min=0, bypass_on=False)
 
     with open('CCC5p2_ExpLog_Test.json', 'w') as f:
         json.dump({'expLog': log}, f, indent=2)
