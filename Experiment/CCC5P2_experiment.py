@@ -109,15 +109,16 @@ def adjusted_sleep(seconds: float, test_mode: bool):
     factor = 1 / 60 if test_mode else 1
     time.sleep(seconds * factor)
     
-def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], delay_min: float = 60, bypass_on: bool = False, use_seconds: bool = False) -> List[List[int]]:
+def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], delay_min: float = 60, bypass_on: bool = False, test_mode: bool = False) -> List[List[int]]:
     log = []
-    now = datetime.datetime.now()
-    delta_fn = (lambda t: datetime.timedelta(seconds=t)) if use_seconds else (lambda t: datetime.timedelta(minutes=t))
+    start_time = datetime.datetime.now()
+    now = start_time
+    delta_fn = (lambda t: datetime.timedelta(seconds=t)) if test_mode else (lambda t: datetime.timedelta(minutes=t))
     exp_matrix_adj = [[now + delta_fn(row[0] + delay_min)] + row[1:] for row in matrix_mat]
 
     for row in exp_matrix_adj:
         scheduled_time , input_valve, row_num, col_num, side, _ = row
-        sleep_step = 0.5 if not use_seconds else 0.01
+        sleep_step = 0.5 if not test_mode else 0.01
         while datetime.datetime.now() < scheduled_time:
             time.sleep(sleep_step)
 
@@ -136,12 +137,12 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
         connection.setValveState(valves["muxIn"], True)
         connection.setValveState(valves["purge"], True)
         # time.sleep(Timings["purgeTime1"])
-        adjusted_sleep(Timings["purgeTime1"], use_seconds)
+        adjusted_sleep(Timings["purgeTime1"], test_mode)
 
         # Stop purge & wait
         connection.setValveState(valves["purge"], False)
         # time.sleep(Timings["prefillTime"])
-        adjusted_sleep(Timings["prefillTime"], use_seconds)
+        adjusted_sleep(Timings["prefillTime"], test_mode)
 
         # Close bypass during feeding
         if not bypass_on:
@@ -158,7 +159,7 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
             connection.setValveState(right, True)
 
         # time.sleep(Timings["feedTime"])
-        adjusted_sleep(Timings["feedTime"], use_seconds)
+        adjusted_sleep(Timings["feedTime"], test_mode)
 
         # Stop feeding
         connection.setValveState(left, False)
@@ -166,16 +167,16 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
         connection.setValveState(valves["bypass"][row_idx], True)
         connection.setValveState(input_valve, False)
         # time.sleep(1)
-        adjusted_sleep(1, use_seconds)
+        adjusted_sleep(1, test_mode)
 
         # Purge the chamber with refresh medium
         connection.setValveState(valves["purge"], True)
         connection.setValveState(valves["fresh"], True)
         # time.sleep(Timings["purgeTime2"])
-        adjusted_sleep(Timings["purgeTime2"], use_seconds)
+        adjusted_sleep(Timings["purgeTime2"], test_mode)
         connection.setValveState(valves["purge"], False)
         # time.sleep(Timings["purgeTime3"])
-        adjusted_sleep(Timings["purgeTime3"], use_seconds)
+        adjusted_sleep(Timings["purgeTime3"], test_mode)
 
         # Cleanup
         connection.setValveState(valves["fresh"], False)
@@ -185,11 +186,41 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
             connection.setValveState(bypass_valve, False)
 
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = [input_valve, row_num, col_num, side, timestamp]
-        log.append(log_entry)
+        log.append({
+            "type": "feed",
+            "valve": input_valve,
+            "row": row_num,
+            "col": col_num,
+            "side": side,
+            "timestamp": timestamp
+        })
         print(f"{timestamp} → Feed Input Valve {input_valve} → Row {row_num}, Column {col_num}, Side {side}")
 
-    return log
+    # Final cleanup
+    print("Experiment completed. Closing all valves...")
+    for vid in set(valveInput + valveID["mux"] + [valveID["purge"], valveID["fresh"], valveID["muxIn"]] + valveID["bypass"] + sum(valveID["chamberIn"], [])):
+        connection.setValveState(vid, False)
+
+    end_time = datetime.datetime.now()
+    log.append({
+        "type": "experiment_end",
+        "timestamp": end_time.strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+    metadata = {
+        "start_time": start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        "end_time": end_time.strftime('%Y-%m-%d %H:%M:%S'),
+        "duration_sec": (end_time - start_time).total_seconds(),
+        "delay_min": delay_min,
+        "bypass_on": bypass_on,
+        "test_mode": test_mode,
+        "num_feeds": len([e for e in log if e["type"] == "feed"])
+    }
+
+    return {
+        "metadata": metadata,
+        "expLog": log
+    }
 
 def saveExperimentMatrixToJson(filename: str, matrix: List[List[int]]):
     with open(filename, 'w') as f:
@@ -212,8 +243,7 @@ def runFromGui(gui, delay_min: float = 0):
         print("Has logMessage:", hasattr(gui, "logMessage"))
 
         gui.logMessage("Starting experiment in background...")
-        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=True)
-        QThreadPool.globalInstance().start(runner)
+        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=True)  # test_mode set here
 
     except Exception as e:
         error_msg = f"Error running experiment: {e}"
@@ -239,29 +269,22 @@ class ExperimentRunner(QRunnable):
             from Experiment.CCC5P2_experiment import generateExperimentMatrix, runExperimentMatrix
             
             time_scale = 1 / 60 if self.test_mode else 1.0  # Scale down to seconds for testing
-            use_test_mode = self.test_mode
+            test_mode = self.test_mode
 
             expMatrix = generateExperimentMatrix(time_scale=time_scale)
             saveExperimentMatrixToJson("CCC5p2_ExpMatrix_GUI_Test.json", expMatrix)
             connection = self.gui.control_box
             
-            log = runExperimentMatrix(
-                connection, 
-                expMatrix, 
-                delay_min=self.delay_min, 
-                bypass_on=False, 
-                use_seconds=use_test_mode
+            expResults = runExperimentMatrix(
+                connection,
+                expMatrix,
+                delay_min=self.delay_min,
+                bypass_on=False,
+                test_mode=test_mode
             )
-            
-            # Safely log each feed entry
-            for row in log:
-                msg = f"Row {row[1]} Col {row[2]}, Side {row[3]} - Input Valve {row[0]} fed at {row[4]}"
-                # print statement for debugging
-                print(msg)
-                QTimer.singleShot(0, lambda m=msg: self.gui.logMessage(m))
 
             with open('CCC5p2_ExpLog_GUI_Test.json', 'w') as f:
-                json.dump({'expLog': log}, f, indent=2)
+                json.dump(expResults, f, indent=2)
             
             QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment completed."))
 
@@ -293,10 +316,10 @@ class ExperimentRunner(QRunnable):
 
 
 def main():
-    use_test = True  # Set to True for testing, False for actual run
+    test_mode = True  # Set to True for testing, False for actual run
 
-    if use_test:
-        expMatrix = generateExperimentMatrix(time_scale=1/60)  # Scale down to seconds for testing)
+    if test_mode:
+        expMatrix = generateExperimentMatrix(time_scale=1/60)  # Scale down to seconds for testing
         print("First 5 scheduled times:")
         for row in expMatrix[:5]:
             print(f"{row[0]:.2f} seconds")
@@ -308,11 +331,10 @@ def main():
     connect = Connection()
     connect.scanForDevices()
 
-    log = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False, use_seconds=use_test)
+    expResults = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False, test_mode=test_mode)
 
     with open('CCC5p2_ExpLog_Main.json', 'w') as f:
-        json.dump({'expLog': log}, f, indent=2)
-    print("Experiment completed and logged.")
+        json.dump(expResults, f, indent=2)
 
 if __name__ == '__main__':
     main()

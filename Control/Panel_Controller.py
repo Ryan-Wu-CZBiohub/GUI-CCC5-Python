@@ -45,7 +45,7 @@ class ValveController:
 
         QTimer.singleShot(0, apply_update)  # Schedule update on the main thread
 
-    def valveToggle(self, button: QPushButton):
+    def valveToggle(self, button: QPushButton, user_triggered: bool = True):
         """Handle individual valve toggle."""
         is_on = button.isChecked()
         state = "OPEN" if is_on else "CLOSE"
@@ -56,11 +56,8 @@ class ValveController:
         button.setStyleSheet(f"color: black; background-color: {color};")
 
         msg = f"Valve {valve_id} {state}"
-        print(msg)
-
-        # suppress logging valve state changes to status log panel
-        # if self.logger:
-        #     self.logger(msg)
+        # if user_triggered and self.logger:
+        #     print(msg)
 
         if self.control_box:
             # Send command to control box
