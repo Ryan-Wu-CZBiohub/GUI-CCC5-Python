@@ -28,7 +28,8 @@ sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..')))
 from Connection.Connection import Connection
 
 ## === Experiment Configuration ===
-inputValve = [24] + list(range(46, 27, -1))  # 24, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
+valveInput = [24] + list(range(46, 27, -1))  
+# print("Input Valve IDs:", valveInput)  
 OS = list(range(0 , 201))
 valveID = {
     "mux": [26, 23, 22, 21, 20, 19, 18, 17],   # multiplexer valves
@@ -54,7 +55,7 @@ Timings = {
 }
 
 
-def generateExperimentMatrix() -> List[List[int]]:
+def generateExperimentMatrix(time_scale=1.0) -> List[List[int]]:
     expMatrix = []
     offset_num = 0
 
@@ -63,9 +64,9 @@ def generateExperimentMatrix() -> List[List[int]]:
         for col_num in range(1, 17):
             offset_num += 1
             for time in time_points:
-                time_min = time + OS[offset_num - 1]
+                time_min = (time + OS[offset_num - 1]) * time_scale
                 input_idx = in_num[col_num - 1]
-                input_valve = inputValve[input_idx - 1]
+                input_valve = valveInput[input_idx - 1]
                 expMatrix.append([time_min, input_valve, row_num, col_num, 2, 0])
 
     # Row 1: every 6 hours
@@ -103,15 +104,22 @@ def setMuxValves(connection: Connection, mux_valves: List[int], index: int):
         states[mux_valves[index]] = 1
     connection.setValveStates(states)
 
-def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], delay_min: float = 60, bypass_on: bool = False):
+def adjusted_sleep(seconds: float, test_mode: bool):
+    """Sleep for the given duration, sped up 60x in test mode (use_seconds=True)."""
+    factor = 1 / 60 if test_mode else 1
+    time.sleep(seconds * factor)
+    
+def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], delay_min: float = 60, bypass_on: bool = False, use_seconds: bool = False) -> List[List[int]]:
     log = []
     now = datetime.datetime.now()
-    exp_matrix_adj = [[now + datetime.timedelta(minutes=row[0] + delay_min)] + row[1:] for row in matrix_mat]
+    delta_fn = (lambda t: datetime.timedelta(seconds=t)) if use_seconds else (lambda t: datetime.timedelta(minutes=t))
+    exp_matrix_adj = [[now + delta_fn(row[0] + delay_min)] + row[1:] for row in matrix_mat]
 
     for row in exp_matrix_adj:
         scheduled_time , input_valve, row_num, col_num, side, _ = row
+        sleep_step = 0.5 if not use_seconds else 0.01
         while datetime.datetime.now() < scheduled_time:
-            time.sleep(0.5)
+            time.sleep(sleep_step)
 
         # TODO: Pause check
 
@@ -127,11 +135,13 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
         connection.setValveState(input_valve, True)
         connection.setValveState(valves["muxIn"], True)
         connection.setValveState(valves["purge"], True)
-        time.sleep(Timings["purgeTime1"])
+        # time.sleep(Timings["purgeTime1"])
+        adjusted_sleep(Timings["purgeTime1"], use_seconds)
 
         # Stop purge & wait
         connection.setValveState(valves["purge"], False)
-        time.sleep(Timings["prefillTime"])
+        # time.sleep(Timings["prefillTime"])
+        adjusted_sleep(Timings["prefillTime"], use_seconds)
 
         # Close bypass during feeding
         if not bypass_on:
@@ -147,21 +157,25 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
             connection.setValveState(left, True)
             connection.setValveState(right, True)
 
-        time.sleep(Timings["feedTime"])
+        # time.sleep(Timings["feedTime"])
+        adjusted_sleep(Timings["feedTime"], use_seconds)
 
         # Stop feeding
         connection.setValveState(left, False)
         connection.setValveState(right, False)
         connection.setValveState(valves["bypass"][row_idx], True)
         connection.setValveState(input_valve, False)
-        time.sleep(1)
+        # time.sleep(1)
+        adjusted_sleep(1, use_seconds)
 
         # Purge the chamber with refresh medium
         connection.setValveState(valves["purge"], True)
         connection.setValveState(valves["fresh"], True)
-        time.sleep(Timings["purgeTime2"])
+        # time.sleep(Timings["purgeTime2"])
+        adjusted_sleep(Timings["purgeTime2"], use_seconds)
         connection.setValveState(valves["purge"], False)
-        time.sleep(Timings["purgeTime3"])
+        # time.sleep(Timings["purgeTime3"])
+        adjusted_sleep(Timings["purgeTime3"], use_seconds)
 
         # Cleanup
         connection.setValveState(valves["fresh"], False)
@@ -189,12 +203,16 @@ def loadExperimentMatrixFromJson(filename: str) -> List[List[int]]:
     
 def runFromGui(gui, delay_min: float = 0):
     try:
+        if gui.experiment_runner and gui.experiment_runner.isRunning():
+            gui.logMessage("Experiment is already running.")
+            return
+        
         print("Type of gui:", type(gui))
         print("Has control_box:", hasattr(gui, "control_box"))
         print("Has logMessage:", hasattr(gui, "logMessage"))
 
         gui.logMessage("Starting experiment in background...")
-        runner = ExperimentRunner(gui, delay_min=delay_min)
+        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=True)
         QThreadPool.globalInstance().start(runner)
 
     except Exception as e:
@@ -206,38 +224,54 @@ def runFromGui(gui, delay_min: float = 0):
 
 
 class ExperimentRunner(QRunnable):
-    def __init__(self, gui, delay_min=0):
+    def __init__(self, gui, delay_min=0, test_mode=True):
         super().__init__()
         self.gui = gui
         self.delay_min = delay_min
         self._pause_event = Event()
         self._pause_event.set()  # Start in unpaused state
+        self._is_running = True
+        self.test_mode = test_mode
 
     @Slot()
     def run(self):
         try:
             from Experiment.CCC5P2_experiment import generateExperimentMatrix, runExperimentMatrix
-
-            matrix = generateExperimentMatrix()
-            connection = self.gui.control_box
-            log = runExperimentMatrix(connection, matrix, delay_min=self.delay_min, bypass_on=False)
             
-            print(f"[Runner] Queuing log: {msg}")
-            # Safely log completion message
-            QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment completed."))
+            time_scale = 1 / 60 if self.test_mode else 1.0  # Scale down to seconds for testing
+            use_test_mode = self.test_mode
 
+            expMatrix = generateExperimentMatrix(time_scale=time_scale)
+            saveExperimentMatrixToJson("CCC5p2_ExpMatrix_GUI_Test.json", expMatrix)
+            connection = self.gui.control_box
+            
+            log = runExperimentMatrix(
+                connection, 
+                expMatrix, 
+                delay_min=self.delay_min, 
+                bypass_on=False, 
+                use_seconds=use_test_mode
+            )
+            
             # Safely log each feed entry
             for row in log:
                 msg = f"Row {row[1]} Col {row[2]}, Side {row[3]} - Input Valve {row[0]} fed at {row[4]}"
                 # print statement for debugging
-
                 print(msg)
                 QTimer.singleShot(0, lambda m=msg: self.gui.logMessage(m))
+
+            with open('CCC5p2_ExpLog_GUI_Test.json', 'w') as f:
+                json.dump({'expLog': log}, f, indent=2)
+            
+            QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment completed."))
 
         except Exception as e:
             tb = traceback.format_exc()
             QTimer.singleShot(0, lambda: self.gui.logMessage(f"Experiment failed: {e}"))
             QTimer.singleShot(0, lambda: self.gui.logMessage(tb))
+
+        finally:
+            self._is_running = False
         
     def pause(self):
         """Pause the experiment."""
@@ -252,29 +286,31 @@ class ExperimentRunner(QRunnable):
     def is_paused(self):
         """Check if the experiment is paused."""
         return not self._pause_event.is_set()    
+    
+    def isRunning(self):
+        """Check if the experiment is running."""
+        return self._is_running
 
 
 def main():
-    use_test = False
+    use_test = True  # Set to True for testing, False for actual run
 
     if use_test:
-        expMatrix = [
-            [0, 46, 1, 1, 2, 0],
-            [1, 46, 1, 2, 2, 0],
-            [2, 46, 1, 3, 2, 0],
-            [3, 46, 1, 4, 2, 0],
-        ]
+        expMatrix = generateExperimentMatrix(time_scale=1/60)  # Scale down to seconds for testing)
+        print("First 5 scheduled times:")
+        for row in expMatrix[:5]:
+            print(f"{row[0]:.2f} seconds")
+        saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Main_Test.json", expMatrix)
     else:
         expMatrix = generateExperimentMatrix()
-        saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
+        saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Main.json", expMatrix)
 
     connect = Connection()
     connect.scanForDevices()
 
-    log = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False)
-    # log = runExperimentMatrix(connect, test_matrix, delay_min=0, bypass_on=False)
+    log = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False, use_seconds=use_test)
 
-    with open('CCC5p2_ExpLog_Test.json', 'w') as f:
+    with open('CCC5p2_ExpLog_Main.json', 'w') as f:
         json.dump({'expLog': log}, f, indent=2)
     print("Experiment completed and logged.")
 

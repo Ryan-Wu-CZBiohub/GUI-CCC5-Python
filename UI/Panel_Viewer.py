@@ -46,14 +46,14 @@ class ValvePanel(QWidget):
 
         # Control buttons for all valves
         control_all_layout = QHBoxLayout()
-        self.toggle_all_on_btn = QPushButton("All Valves - ON")
+        self.toggle_all_on_btn = QPushButton("All Valves - OPEN")
         self.toggle_all_on_btn.setCheckable(True)
         self.toggle_all_on_btn.setMinimumSize(50, 50)
         self.toggle_all_on_btn.setStyleSheet("color: black; background-color: lightgrey;")
         self.toggle_all_on_btn.toggled.connect(self.valve_controller.valveOnAll)
         control_all_layout.addWidget(self.toggle_all_on_btn)
         valve_panel_layout.addLayout(control_all_layout)
-        self.toggle_all_off_btn = QPushButton("All Valves - OFF")
+        self.toggle_all_off_btn = QPushButton("All Valves - CLOSE")
         self.toggle_all_off_btn.setCheckable(True)
         self.toggle_all_off_btn.setMinimumSize(50, 50)
         self.toggle_all_off_btn.setStyleSheet("color: black; background-color: lightgrey;")
@@ -84,7 +84,7 @@ class ValvePanel(QWidget):
                 if valve_id >= 48:    #### Change this to the number of valves you want ####
                     break
 
-                btn = DraggableValveButton(f"Valve {valve_id} - OFF", valve_id, self)
+                btn = DraggableValveButton(f"Valve {valve_id} - CLOSE", valve_id, self)
                 btn.setCheckable(True)
                 btn.setContextMenuPolicy(Qt.CustomContextMenu)
                 btn.customContextMenuRequested.connect(self.showValveContextMenu)
@@ -144,7 +144,7 @@ class ValvePanel(QWidget):
         for valve_id, button in list(self.deleted_buttons):
             button.setEnabled(True)
             button.setChecked(False)
-            button.setText(f"Valve {valve_id} - OFF")
+            button.setText(f"Valve {valve_id} - CLOSE")
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
 
             row, col = divmod(valve_id, 12)
@@ -165,7 +165,7 @@ class ValvePanel(QWidget):
             button.setChecked(False)
             button.setEnabled(True)
             button.setVisible(True)
-            button.setText(f"Valve {valve_id} - OFF")
+            button.setText(f"Valve {valve_id} - CLOSE")
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
             self.valve_controller.positions[valve_id] = (default_row, default_col)
 
@@ -219,7 +219,7 @@ class PumpPanel(QWidget):
         self.pump_controller = PumpController(self, logger=self.logger)
         layout = QVBoxLayout()
         for pump_id in range(1, 4):
-            btn = QPushButton(f"Pump {pump_id} - OFF")
+            btn = QPushButton(f"Pump {pump_id} - CLOSE")
             btn.setCheckable(True)
             btn.setMinimumSize(50, 50)
             btn.setProperty("pump_id", pump_id)

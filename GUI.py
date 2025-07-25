@@ -41,6 +41,7 @@ class MainWindow(QMainWindow):
         self.setup_layout()
         self.create_menu_bar()
         self.create_dock_widgets()
+        self.experiment_runner = None
         # self.log_signal = Signal(str)
         # self.log_signal.connect(self.logMessage)
 

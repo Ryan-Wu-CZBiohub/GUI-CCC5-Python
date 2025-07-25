@@ -19,8 +19,8 @@ from Connection.Connection import Connection
 
 class ValveController:
     def __init__(self, valve_panel=None, logger=None, control_box: Connection = None):
-        self.btn_on_color = "rgb(255, 255, 55)"     # Yellow for "OPEN"
-        self.btn_off_color = "rgb(230, 230, 230)"   # Light gray for "CLOSED"
+        self.btn_off_color = "rgb(255, 255, 55)"     # Yellow for "CLOSED"
+        self.btn_on_color = "rgb(230, 230, 230)"     # Light gray for "OPEN"
         self.buttons = {}
         self.positions = {} 
         self.valve_panel = valve_panel
@@ -39,7 +39,7 @@ class ValveController:
 
             button.setChecked(state)
             color = self.btn_on_color if state else self.btn_off_color
-            label = "ON" if state else "OFF"
+            label = "OPEN" if state else "CLOSE"
             button.setText(f"Valve {valve_id} - {label}")
             button.setStyleSheet(f"color: black; background-color: {color};")
 
@@ -48,7 +48,7 @@ class ValveController:
     def valveToggle(self, button: QPushButton):
         """Handle individual valve toggle."""
         is_on = button.isChecked()
-        state = "ON" if is_on else "OFF"
+        state = "OPEN" if is_on else "CLOSE"
         color = self.btn_on_color if is_on else self.btn_off_color
 
         valve_id = button.property("valve_id")
@@ -83,8 +83,8 @@ class ValveController:
 class PumpController:
     def __init__(self, pump_panel=None, logger=None, control_box: Connection = None):
         self.control_box = control_box if control_box is not None else Connection()
-        self.btn_on_color = "rgb(255, 255, 55)"     # Yellow for "OPEN"
-        self.btn_off_color = "rgb(230, 230, 230)"   # Light gray for "CLOSED"
+        self.btn_off_color = "rgb(255, 255, 55)"     # Yellow for "CLOSED"
+        self.btn_on_color = "rgb(230, 230, 230)"   # Light gray for "OPEN"
         self.buttons = []                           # List to hold button references
         self.pump_panel = pump_panel
         self.logger = logger
@@ -92,7 +92,7 @@ class PumpController:
     def pumpToggle(self, button: QPushButton):
         """Handle individual pump toggle."""
         is_on = button.isChecked()
-        state = "ON" if is_on else "OFF"
+        state = "OPEN" if is_on else "CLOSE"
         color = self.btn_on_color if is_on else self.btn_off_color
 
         pump_id = button.property("pump_id")
@@ -110,7 +110,7 @@ class PumpController:
         for btn in self.buttons:
             if btn.isVisible() and btn.isEnabled() and not btn.isChecked():
                 btn.setChecked(True)
-        print("All pumps ON")
+        print("All pumps OPEN")
 
 
     def pumpOffAll(self):
@@ -118,7 +118,7 @@ class PumpController:
         for btn in self.buttons:
             if btn.isVisible() and btn.isEnabled() and btn.isChecked():
                 btn.setChecked(False)
-        print("All pumps OFF")
+        print("All pumps CLOSE")
 
 
 class FlushTask(QRunnable):
