@@ -19,13 +19,28 @@ class ValveSlots(QWidget):
         self.valve_panel = valve_panel
         self.layout = QStackedLayout(self)
         self.setLayout(self.layout)
+        self.setFixedSize(self.valve_panel.valve_width, self.valve_panel.valve_height)
 
     def setValveButton(self, button: QPushButton):
+        self.clearSlot()
+        button.setFixedSize(
+            self.valve_panel.valve_width,
+            self.valve_panel.valve_height
+        )
+        self.layout.addWidget(button)
+    
+    # def setValveButton(self, button: QPushButton):
+    #     while self.layout.count():
+    #         w = self.layout.widget(0)
+    #         self.layout.removeWidget(w)
+    #         w.setParent(None)
+    #     self.layout.addWidget(button)
+
+    def clearSlot(self):
         while self.layout.count():
             w = self.layout.widget(0)
             self.layout.removeWidget(w)
             w.setParent(None)
-        self.layout.addWidget(button)
 
 
 class ValvePanel(QWidget):
@@ -40,6 +55,9 @@ class ValvePanel(QWidget):
         valve_panel_layout = QVBoxLayout()
 
         self.grid_layout = QGridLayout()
+        self.grid_layout.setHorizontalSpacing(0)
+        self.grid_layout.setVerticalSpacing(0)
+        self.grid_layout.setContentsMargins(5, 5, 5, 5)
         valve_panel_layout.addLayout(self.grid_layout)
 
         self.deleted_buttons = []
@@ -68,7 +86,9 @@ class ValvePanel(QWidget):
         self.reset_all_btn.clicked.connect(self.resetAllValves)
         control_all_layout.addWidget(self.reset_all_btn)
 
-        self.rows = 15
+        self.valve_width = 75
+        self.valve_height = 35
+        self.rows = 15  # Number of rows in the grid
         self.cols = 12
         self.slot_grid = {}
 
@@ -77,19 +97,22 @@ class ValvePanel(QWidget):
                 slot = ValveSlots(i, j, self)
                 self.grid_layout.addWidget(slot, i, j)
                 self.slot_grid[(i, j)] = slot
-            
+                  
         for i in range(self.rows):
             for j in range(self.cols):
                 valve_id = i * self.cols + j
                 if valve_id >= 48:    #### Change this to the number of valves you want ####
                     break
 
-                btn = DraggableValveButton(f"Valve {valve_id} - CLOSE", valve_id, self)
-                btn.setCheckable(True)
+                btn = DraggableValveButton(f"{valve_id} - CLOSE", valve_id, self)
                 btn.setContextMenuPolicy(Qt.CustomContextMenu)
                 btn.customContextMenuRequested.connect(self.showValveContextMenu)
-                btn.setMinimumSize(50, 50)
+                btn.setFixedSize(self.valve_width, self.valve_height)
                 btn.setProperty("valve_id", valve_id)
+                btn.setCheckable(True)
+                btn.setEnabled(True)
+                btn.setVisible(True)
+                btn.setMinimumSize(75, 50)
                 btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
                 btn.toggled.connect(self.handleValveToggle)
 
@@ -135,20 +158,31 @@ class ValvePanel(QWidget):
             self.repositionValveButton(button, row - 1, col - 1)
 
     def repositionValveButton(self, button, new_row, new_col):
-        old_row, old_col = self.valve_controller.positions[button.property("valve_id")]
-        self.slot_grid[(old_row, old_col)].setValveButton(QWidget())
+        valve_id = button.property("valve_id")
+        old_row, old_col = self.valve_controller.positions[valve_id]
+
+        self.valve_controller.buttons.pop(valve_id, None)
+        self.slot_grid[self.valve_controller.positions[valve_id]].clearSlot()
+        self.valve_controller.positions.pop(valve_id, None)
+        # self.slot_grid[(old_row, old_col)].setValveButton(QWidget())
+       
         self.slot_grid[(new_row, new_col)].setValveButton(button)
-        self.valve_controller.positions[button.property("valve_id")] = (new_row, new_col)
+        self.valve_controller.positions[valve_id] = (new_row, new_col)
 
     def resetAllValves(self):
-        for valve_id, button in list(self.deleted_buttons):
+        # Clear all slots first
+        for slot in self.slot_grid.values():
+            slot.clearSlot()
+
+        # Reset deleted buttons
+        for valve_id, button in self.deleted_buttons:
             button.setEnabled(True)
             button.setChecked(False)
-            button.setText(f"Valve {valve_id} - CLOSE")
+            button.setText(f"{valve_id} - CLOSE")
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
 
-            row, col = divmod(valve_id, 12)
-            self.grid_layout.addWidget(button, row, col)
+            row, col = divmod(valve_id, self.cols)
+            self.slot_grid[(row, col)].setValveButton(button)
             self.valve_controller.buttons[valve_id] = button
             self.valve_controller.positions[valve_id] = (row, col)
 
@@ -157,15 +191,15 @@ class ValvePanel(QWidget):
 
         self.deleted_buttons.clear()
 
+        # Reposition all active buttons to default layout
         for valve_id, button in self.valve_controller.buttons.items():
-            default_row, default_col = divmod(valve_id, 12)
-            self.grid_layout.removeWidget(button)
-            self.grid_layout.addWidget(button, default_row, default_col)
+            default_row, default_col = divmod(valve_id, self.cols)
+            self.slot_grid[(default_row, default_col)].setValveButton(button)
 
             button.setChecked(False)
             button.setEnabled(True)
             button.setVisible(True)
-            button.setText(f"Valve {valve_id} - CLOSE")
+            button.setText(f"{valve_id} - CLOSE")
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
             self.valve_controller.positions[valve_id] = (default_row, default_col)
 
@@ -175,6 +209,14 @@ class ValvePanel(QWidget):
         if self.logger:
             self.logger(message)
 
+    def clearAllSlots(self):
+        """Clear all slots in the valve panel."""
+        for slot in self.slot_grid.values():
+            slot.clearSlot()
+        self.valve_controller.buttons.clear()
+        self.valve_controller.positions.clear()
+        self.deleted_buttons.clear()
+        self.updateStatus("All slots cleared.")
 
 class BorderSpacer(QLabel):
     def __init__(self, vertical):

@@ -34,13 +34,16 @@ class ValveController:
         def apply_update():
             button = self.buttons.get(valve_id)
             if not button:
-                # print(f"[updateButtonState] No button found for valve {valve_id}")
                 return
+            
+            if button.isChecked() != state:
+                button.blockSignals(True)
+                button.setChecked(state)
+                button.blockSignals(False)
 
-            button.setChecked(state)
-            color = self.btn_on_color if state else self.btn_off_color
             label = "OPEN" if state else "CLOSE"
-            button.setText(f"Valve {valve_id} - {label}")
+            color = self.btn_on_color if state else self.btn_off_color
+            button.setText(f"{valve_id} - {label}")
             button.setStyleSheet(f"color: black; background-color: {color};")
 
         QTimer.singleShot(0, apply_update)  # Schedule update on the main thread
@@ -52,7 +55,7 @@ class ValveController:
         color = self.btn_on_color if is_on else self.btn_off_color
 
         valve_id = button.property("valve_id")
-        button.setText(f"Valve {valve_id} - {state}")
+        button.setText(f"{valve_id} - {state}")
         button.setStyleSheet(f"color: black; background-color: {color};")
 
         msg = f"Valve {valve_id} {state}"

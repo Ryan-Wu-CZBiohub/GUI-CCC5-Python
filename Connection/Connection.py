@@ -45,10 +45,23 @@ class Connection(QObject):
                 new_device.enabled = True 
                 port = port_info.device
                 if port in self.PORT_TO_START:
-                    new_device.start_number = self.PORT_TO_START[port]
+                    config = self.PORT_TO_START[port]
+                    if isinstance(config, dict):
+                        new_device.start_number = config.get("start_number", 0)
+                        new_device.polarities = config.get("polarities", [False, False, False])
+                    else:
+                        # fallback for older format (backward compatibility)
+                        new_device.start_number = config
+                        new_device.polarities = [False, False, False]
                 else:
-                    print(f"Port {port} not in PORT_TO_START, assigning start_number = 0")
-                    new_device.start_number = 0 
+                    print(f"Port {port} not in PORT_TO_START, assigning defaults")
+                    new_device.start_number = 0
+                    new_device.polarities = [False, False, False]
+                # if port in self.PORT_TO_START:
+                #     new_device.start_number = self.PORT_TO_START[port]
+                # else:
+                #     print(f"Port {port} not in PORT_TO_START, assigning start_number = 0")
+                #     new_device.start_number = 0 
 
                 new_device.connect()
                 self.devices.append(new_device)
@@ -76,7 +89,7 @@ class Connection(QObject):
         for device in self.devices:
             device.disconnect()
 
-    def setValveState(self, number: int, state: bool):
+    def setValveState(self, number: int, state: bool): 
         self.valve_states[number] = state
         self.flush()
         self.valveStateChanged.emit(number, state)
@@ -106,7 +119,7 @@ class Device:
     def __init__(self):
         self.port_info: Optional[ListPortInfo] = None
         self.start_number = 0
-        self.polarities = [False, False, False]
+        self.polarities = [True, True, True]
         self.enabled = False
         self.available = False
         self.serial_port: Optional[Serial] = None

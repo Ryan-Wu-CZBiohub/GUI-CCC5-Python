@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         valve_dock = QDockWidget("Valve Controls", self)
         valve_dock.setWidget(valve_widget)
         valve_dock.setFloating(False)
-        valve_dock.setMinimumWidth(1300)
+        # valve_dock.setMinimumWidth(1300)
         valve_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         valve_dock.setFeatures(
             QDockWidget.DockWidgetMovable
@@ -150,6 +150,7 @@ class MainWindow(QMainWindow):
             # | QDockWidget.DockWidgetClosable
         )
         self.addDockWidget(Qt.RightDockWidgetArea, status_dock)
+       
 
         # Scripts panel
         self.scripts_panel = QWidget()
@@ -176,7 +177,7 @@ class MainWindow(QMainWindow):
         scripts_dock = QDockWidget("Experiment Script", self)
         scripts_dock.setWidget(self.scripts_panel)
         scripts_dock.setFloating(False)
-        scripts_dock.setMinimumWidth(300)
+        # scripts_dock.setMinimumWidth(300)
         scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         scripts_dock.setFeatures(
             QDockWidget.DockWidgetMovable
@@ -184,7 +185,10 @@ class MainWindow(QMainWindow):
             # | QDockWidget.DockWidgetClosable
         )
         self.addDockWidget(Qt.RightDockWidgetArea, scripts_dock)
-
+        self.resizeDocks([valve_dock, scripts_dock], [int(self.width() * 0.75), int(self.width() * 0.25)], Qt.Horizontal)
+        self.splitDockWidget(
+            status_dock, scripts_dock, Qt.Vertical
+        )
         # Port information panel
         # self.port_panel = PortPanel(logger=self.logMessage, control_box=self.control_box)
         # port_dock = QDockWidget("Port Information", self)
@@ -393,6 +397,8 @@ class MainWindow(QMainWindow):
 
             if "valves" not in layout_data:
                 raise ValueError("Invalid layout file format.")
+            
+            self.valve_panel.resetAllValves()  # Clear existing buttons
 
             for valve_id_str, position in layout_data["valves"].items():
                 valve_id = int(valve_id_str)
@@ -402,17 +408,42 @@ class MainWindow(QMainWindow):
                 if button:
                     # Clear old position
                     old_row, old_col = self.valve_panel.valve_controller.positions[valve_id]
-                    self.valve_panel.slot_grid[(old_row, old_col)].setValveButton(QWidget())
+                    # self.valve_panel.slot_grid[(old_row, old_col)].setValveButton(QWidget())
+                    self.valve_panel.slot_grid[(old_row, old_col)].clearSlot()
                     
                     # Set to new position
                     self.valve_panel.slot_grid[(row, col)].setValveButton(button)
                     self.valve_panel.valve_controller.positions[valve_id] = (row, col)
+                    btn_25 = self.valve_controller.buttons.get(25)
+                    pos_25 = self.valve_controller.positions.get(25)
+                    print("Valve 25 button:", btn_25)
+                    print("Valve 25 position:", pos_25)
 
             self.logMessage(f"Valve layout loaded from: {file_name}")
 
         except Exception as e:
             self.logMessage(f"Error loading layout: {e}")
 
+    def resizeEvent(self, event):
+        """Resize the main window and adjust dock widgets."""
+        super().resizeEvent(event)
+
+        valve_dock = self.findChild(QDockWidget, "Valve Controls")
+        scripts_dock = self.findChild(QDockWidget, "Experiment Script")
+        status_dock = self.findChild(QDockWidget, "Status Log")
+
+        if valve_dock and scripts_dock:
+            self.resizeDocks(
+                [valve_dock, scripts_dock],
+                [int(self.width() * 0.80), int(self.width() * 0.20)],
+                Qt.Horizontal
+            )
+        if status_dock:
+            self.resizeDocks(
+                [status_dock],
+                [int(self.height() * 0.25)],
+                Qt.Vertical
+            )
 
 if __name__ == "__main__":
     app = QApplication([])

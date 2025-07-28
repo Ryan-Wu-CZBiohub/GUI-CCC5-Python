@@ -268,7 +268,7 @@ class ExperimentRunner(QRunnable):
         try:
             from Experiment.CCC5P2_experiment import generateExperimentMatrix, runExperimentMatrix
             
-            time_scale = 1 / 60 if self.test_mode else 1.0  # Scale down to seconds for testing
+            time_scale = 1 / 60 if self.test_mode else 1.0  # Scale down the experiment time by 60x for testing
             test_mode = self.test_mode
 
             expMatrix = generateExperimentMatrix(time_scale=time_scale)
