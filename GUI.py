@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
             exec(self.script_code, script_globals)
 
             self.logMessage(f"Running {self.loaded_script_path} from script...")
-            runner = ExperimentRunner(self)
+            runner = ExperimentRunner(self, test_mode=False)
             QThreadPool.globalInstance().start(runner)
 
         except Exception as e:

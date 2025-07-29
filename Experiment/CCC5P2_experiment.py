@@ -104,11 +104,13 @@ def setMuxValves(connection: Connection, mux_valves: List[int], index: int):
         states[mux_valves[index]] = 1
     connection.setValveStates(states)
 
-def adjusted_sleep(seconds: float, test_mode: bool):
-    """Sleep for the given duration, sped up 60x in test mode (use_seconds=True)."""
-    factor = 1 / 60 if test_mode else 1
-    time.sleep(seconds * factor)
-    
+def adjusted_sleep(duration: float, test_mode: bool):
+    """Sleep for the given duration, sped up in test mode."""
+    if test_mode:
+        time.sleep(duration / 100.0)
+    else:
+        time.sleep(duration)
+
 def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], delay_min: float = 60, bypass_on: bool = False, test_mode: bool = False) -> List[List[int]]:
     """Run the experiment matrix on the given connection."""
     log = []
@@ -247,7 +249,7 @@ def runFromGui(gui, delay_min: float = 0):
         print("Has logMessage:", hasattr(gui, "logMessage"))
 
         gui.logMessage("Starting experiment in background...")
-        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=True)  # test_mode set here
+        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=False)  # test_mode set here
 
     except Exception as e:
         error_msg = f"Error running experiment: {e}"
@@ -258,7 +260,7 @@ def runFromGui(gui, delay_min: float = 0):
 
 
 class ExperimentRunner(QRunnable):
-    def __init__(self, gui, delay_min=0, test_mode=True):
+    def __init__(self, gui, delay_min=0, test_mode=False):
         super().__init__()
         self.gui = gui
         self.delay_min = delay_min
@@ -272,11 +274,11 @@ class ExperimentRunner(QRunnable):
         try:
             from Experiment.CCC5P2_experiment import generateExperimentMatrix, runExperimentMatrix
             
-            time_scale = 1 / 60 if self.test_mode else 1.0  # Scale down the experiment time by 60x for testing
+            time_scale = 1 / 100 if self.test_mode else 1.0  # Scale down the experiment time by 60x for testing
             test_mode = self.test_mode
 
             expMatrix = generateExperimentMatrix(time_scale=time_scale)
-            saveExperimentMatrixToJson("CCC5p2_ExpMatrix_GUI_Test.json", expMatrix)
+            saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
             connection = self.gui.control_box
             
             expResults = runExperimentMatrix(
@@ -287,7 +289,7 @@ class ExperimentRunner(QRunnable):
                 test_mode=test_mode
             )
 
-            with open('CCC5p2_ExpLog_GUI_Test.json', 'w') as f:
+            with open('CCC5p2_ExpLog.json', 'w') as f:
                 json.dump(expResults, f, indent=2)
             
             QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment completed."))
@@ -323,21 +325,21 @@ def main():
     test_mode = True  # Set to True for testing, False for actual run
 
     if test_mode:
-        expMatrix = generateExperimentMatrix(time_scale=1/60)  # Scale down to seconds for testing
+        expMatrix = generateExperimentMatrix(time_scale=1/100)  # Scale down to seconds for testing
         print("First 5 scheduled times:")
         for row in expMatrix[:5]:
             print(f"{row[0]:.2f} seconds")
-        saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Main_Test.json", expMatrix)
+        saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Test.json", expMatrix)
     else:
         expMatrix = generateExperimentMatrix()
-        saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Main.json", expMatrix)
+        saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Test.json", expMatrix)
 
     connect = Connection()
     connect.scanForDevices()
 
     expResults = runExperimentMatrix(connect, expMatrix, delay_min=0, bypass_on=False, test_mode=test_mode)
 
-    with open('CCC5p2_ExpLog_Main.json', 'w') as f:
+    with open('CCC5p2_ExpLog_Test.json', 'w') as f:
         json.dump(expResults, f, indent=2)
 
 if __name__ == '__main__':
