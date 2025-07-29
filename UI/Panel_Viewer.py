@@ -88,9 +88,36 @@ class ValvePanel(QWidget):
 
         self.valve_width = 75
         self.valve_height = 35
-        self.rows = 15  # Number of rows in the grid
+        self.rows = 22  # Number of rows in the grid
         self.cols = 12
         self.slot_grid = {}
+        
+        # valve_count = 48
+        # valve_id = 0
+
+        # for i in range(self.rows):
+        #     for j in range(self.cols):
+        #         if valve_id >= valve_count:
+        #             break
+
+        #         btn = DraggableValveButton(f"{valve_id} - CLOSE", valve_id, self)
+        #         btn.setContextMenuPolicy(Qt.CustomContextMenu)
+        #         btn.customContextMenuRequested.connect(self.showValveContextMenu)
+        #         btn.setFixedSize(self.valve_width, self.valve_height)
+        #         btn.setProperty("valve_id", valve_id)
+        #         btn.setCheckable(True)
+        #         btn.setEnabled(True)
+        #         btn.setVisible(True)
+        #         btn.setMinimumSize(75, 50)
+        #         btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
+        #         btn.toggled.connect(self.handleValveToggle)
+        #         self.slot_grid[(i, j)].setValveButton(btn)
+        #         self.valve_controller.buttons[valve_id] = btn
+        #         self.valve_controller.positions[valve_id] = (i, j)
+
+        #         valve_id += 1
+        #     if valve_id >= valve_count:
+        #         break
 
         for i in range(self.rows):
             for j in range(self.cols):
@@ -159,22 +186,29 @@ class ValvePanel(QWidget):
 
     def repositionValveButton(self, button, new_row, new_col):
         valve_id = button.property("valve_id")
-        old_row, old_col = self.valve_controller.positions[valve_id]
 
-        self.valve_controller.buttons.pop(valve_id, None)
-        self.slot_grid[self.valve_controller.positions[valve_id]].clearSlot()
-        self.valve_controller.positions.pop(valve_id, None)
-        # self.slot_grid[(old_row, old_col)].setValveButton(QWidget())
-       
+        old_pos = self.valve_controller.positions.get(valve_id)
+        if old_pos:
+            self.slot_grid[old_pos].clearSlot()
+
         self.slot_grid[(new_row, new_col)].setValveButton(button)
         self.valve_controller.positions[valve_id] = (new_row, new_col)
 
+        self.valve_controller.buttons[valve_id] = button
+
     def resetAllValves(self):
-        # Clear all slots first
         for slot in self.slot_grid.values():
             slot.clearSlot()
 
-        # Reset deleted buttons
+        for valve_id, button in self.valve_controller.buttons.items():
+            button.setEnabled(True)
+            button.setChecked(False)
+            button.setText(f"{valve_id} - CLOSE")
+            button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
+
+            row, col = divmod(valve_id, self.cols)
+            self.slot_grid[(row, col)].setValveButton(button)
+
         for valve_id, button in self.deleted_buttons:
             button.setEnabled(True)
             button.setChecked(False)
@@ -190,8 +224,7 @@ class ValvePanel(QWidget):
             button.show()
 
         self.deleted_buttons.clear()
-
-        # Reposition all active buttons to default layout
+        
         for valve_id, button in self.valve_controller.buttons.items():
             default_row, default_col = divmod(valve_id, self.cols)
             self.slot_grid[(default_row, default_col)].setValveButton(button)
@@ -203,7 +236,7 @@ class ValvePanel(QWidget):
             button.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
             self.valve_controller.positions[valve_id] = (default_row, default_col)
 
-        self.updateStatus("All valves reset.")
+        self.updateStatus("All valves reset.")    
 
     def updateStatus(self, message):
         if self.logger:
