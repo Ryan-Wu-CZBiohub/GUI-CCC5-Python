@@ -16,6 +16,7 @@ class Connection(QObject):
         self.valve_states: Dict[int, bool] = {}  # Global valve state map
         self.devices: List[Device] = []          # List of connected Device instances
         config_path = "Connection/Valve_Port_Map.json"
+        # config_path = "Connection/Valve_Port_Map_Dell_Precision.json"  # map config for other laptop
         if os.path.exists(config_path):
             with open(config_path, "r") as f:
                 self.PORT_TO_START = json.load(f)
@@ -55,7 +56,7 @@ class Connection(QObject):
                         new_device.start_number = config
                         new_device.polarities = [False, False, False]
                 else:
-                    print(f"Port {port} not in PORT_TO_START, assigning defaults")
+                    print(f"Port {port} not in PORT_TO_START, disregard")
                     new_device.start_number = 0
                     new_device.polarities = [False, False, False]
         

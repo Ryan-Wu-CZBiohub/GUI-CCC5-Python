@@ -1,15 +1,15 @@
 {
-  "COM7": {
-    "start_number": 24,
-    "polarities": [true, true, true]
-  },
-  "COM4": {
+  "COM3": {
     "start_number": 72,
     "polarities": [false, false, false]
   },
-  "COM5": {
+  "COM4": {
     "start_number": 48,
     "polarities": [false, false, false]
+  },
+  "COM5": {
+    "start_number": 24,
+    "polarities": [true, true, true]
   },
   "COM6": {
     "start_number": 0,
