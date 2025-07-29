@@ -42,8 +42,6 @@ class MainWindow(QMainWindow):
         self.create_menu_bar()
         self.create_dock_widgets()
         self.experiment_runner = None
-        # self.log_signal = Signal(str)
-        # self.log_signal.connect(self.logMessage)
 
     def main_window(self):
         """Main window settings."""
@@ -52,10 +50,7 @@ class MainWindow(QMainWindow):
         self.resize(1600, 900)
         self.setMinimumSize(1600, 900)
         palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(230, 230, 230))  
-        # self.setStyleSheet(
-        #     "background-color: rgb(230, 230, 230);"
-        # )  # light gray background
+        palette.setColor(QPalette.Window, QColor(230, 230, 230))
 
     def initialize_controllers(self):
         """Initialize the controllers and panels for the application."""
@@ -151,7 +146,6 @@ class MainWindow(QMainWindow):
         )
         self.addDockWidget(Qt.RightDockWidgetArea, status_dock)
        
-
         # Scripts panel
         self.scripts_panel = QWidget()
         scripts_layout = QVBoxLayout(self.scripts_panel)
@@ -165,19 +159,9 @@ class MainWindow(QMainWindow):
         self.run_script_button.clicked.connect(self.runScript)
         scripts_layout.addWidget(self.run_script_button)
 
-        # self.pause_script_button = QPushButton("Pause Script")
-        # self.pause_script_button.clicked.connect(self.pauseExperiment)
-        # scripts_layout.addWidget(self.pause_script_button)
-
-        # self.resume_script_button = QPushButton("Resume Script")
-        # self.resume_script_button.clicked.connect(self.resumeExperiment)
-        # scripts_layout.addWidget(self.resume_script_button)
-        
-        # (TODO: add run button or script output)
         scripts_dock = QDockWidget("Experiment Script", self)
         scripts_dock.setWidget(self.scripts_panel)
         scripts_dock.setFloating(False)
-        # scripts_dock.setMinimumWidth(300)
         scripts_dock.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         scripts_dock.setFeatures(
             QDockWidget.DockWidgetMovable
@@ -213,8 +197,6 @@ class MainWindow(QMainWindow):
                 with open(file_name, "r") as file:
                     self.script_code = file.read()
                 self.loaded_script_path = file_name
-                # self.status_box.clear()
-                self.status_box.append("───────────────────────────────")
                 self.run_script_button.setEnabled(True)
                 self.logMessage(f"{file_name} loaded successfully.")
             except Exception as e:
@@ -228,37 +210,18 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            # Execute the script in a controlled namespace with GUI reference
             script_globals = {"gui": self}
             exec(self.script_code, script_globals)
 
-            # If the script defines a runFromGui(gui) function, call it
             self.logMessage(f"Running {self.loaded_script_path} from script...")
             runner = ExperimentRunner(self)
             QThreadPool.globalInstance().start(runner)
-
-
-            # if "runFromGui" in script_globals and callable(script_globals["runFromGui"]):
-            #     script_globals["runFromGui"](self)
-            #     self.logMessage("runFromGui() executed successfully.")
-            # else:
-            #     self.logMessage("Script loaded, but no runFromGui(gui) function found.")
 
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
             self.logMessage(f"Error running script: {e}")
             self.logMessage(tb)
-
-    # def logMessage(self, message: str):
-    #     """Log a message to the status box with a timestamp."""
-    #     def _appendToStatus():
-    #         print(f"[MainWindow] logMessage triggered: {message}") 
-    #         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #         self.status_box.append(f"{timestamp} {message}")
-    #         self.status_box.moveCursor(QTextCursor.End)
-
-    #     QTimer.singleShot(0, _appendToStatus)  # Ensure logging happens in the main thread
     @Slot(str)
     def logMessage(self, message: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -271,12 +234,8 @@ class MainWindow(QMainWindow):
         self.status_box.append(f"{timestamp} {message}")
         self.status_box.moveCursor(QTextCursor.End)
 
-    # def logMessage(self, message: str):
-    #     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #     self.status_box.append(f"{timestamp} {message}")
-    #     self.status_box.moveCursor(QTextCursor.End)
-
     def promptForClose(self):
+        """Prompt the user for confirmation before closing the application."""
         reply = QMessageBox.question(
             self,
             "Confirm Close",
@@ -287,25 +246,11 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.Yes:
             self.valve_controller.valveOffAll()
             self.control_box.disconnectAll()
-            
-            # action_reply = QMessageBox.question(
-            #     self, "Shutdowns",
-            #     "Do you want to close all valves and pumps before exiting?",
-            #     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-            #     QMessageBox.Yes2
-            # )
-
-            # if action_reply == QMessageBox.Yes:
-            #     self.control_box.setAllValvesOff()
-            #     self.pump_controller.pumpOffAll()
-            # elif action_reply == QMessageBox.No:
-            #     print("Leaving valves and pumps as-is.")
-            # else:  # Cancel exit
-            #     return False
             return True
         return False
 
     def closeEvent(self, event):
+        """Handle the close event of the main window."""
         if self.promptForClose():
             print("Closing the application...")
             event.accept()
@@ -315,6 +260,7 @@ class MainWindow(QMainWindow):
 
     # menu functions
     def openFile(self):
+        """Open a file and display its content in a preview window."""
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open File", "", "All Files (*)"
         )
@@ -356,8 +302,8 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.logMessage(f"Error opening file: {e}")
 
-
     def saveFileAs(self):
+        """Save the current valve layout to a file."""
         file_name, _ = QFileDialog.getSaveFileName(
             self,
             "Save Valve Layout",
@@ -382,6 +328,7 @@ class MainWindow(QMainWindow):
             self.logMessage(f"Error saving layout: {e}")
 
     def loadFile(self):
+        """Load a valve layout from a file."""
         file_name, _ = QFileDialog.getOpenFileName(
         self,
         "Open Valve Layout",
@@ -413,10 +360,6 @@ class MainWindow(QMainWindow):
                     # Set to new position
                     self.valve_panel.slot_grid[(row, col)].setValveButton(button)
                     self.valve_panel.valve_controller.positions[valve_id] = (row, col)
-                    btn_25 = self.valve_controller.buttons.get(25)
-                    pos_25 = self.valve_controller.positions.get(25)
-                    print("Valve 25 button:", btn_25)
-                    print("Valve 25 position:", pos_25)
 
             self.logMessage(f"Valve layout loaded from: {file_name}")
 

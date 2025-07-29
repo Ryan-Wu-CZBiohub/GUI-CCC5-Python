@@ -28,8 +28,7 @@ sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..')))
 from Connection.Connection import Connection
 
 ## === Experiment Configuration ===
-valveInput = [24] + list(range(46, 27, -1))  
-# print("Input Valve IDs:", valveInput)  
+valveInput = [24] + list(range(46, 27, -1))   
 OS = list(range(0 , 201))
 valveID = {
     "mux": [26, 23, 22, 21, 20, 19, 18, 17],   # multiplexer valves
@@ -99,6 +98,7 @@ def generateExperimentMatrix(time_scale=1.0) -> List[List[int]]:
     return expMatrix
 
 def setMuxValves(connection: Connection, mux_valves: List[int], index: int):
+    """Set the state of the multiplexer valves based on the index."""
     states = {vid: 0 for vid in mux_valves}
     if 0 <= index < len(mux_valves):
         states[mux_valves[index]] = 1
@@ -110,6 +110,7 @@ def adjusted_sleep(seconds: float, test_mode: bool):
     time.sleep(seconds * factor)
     
 def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], delay_min: float = 60, bypass_on: bool = False, test_mode: bool = False) -> List[List[int]]:
+    """Run the experiment matrix on the given connection."""
     log = []
     start_time = datetime.datetime.now()
     now = start_time
@@ -223,16 +224,19 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
     }
 
 def saveExperimentMatrixToJson(filename: str, matrix: List[List[int]]):
+    """Save the experiment matrix to a JSON file."""
     with open(filename, 'w') as f:
         json.dump({'matrix': matrix}, f, indent=2)
         print(f"Saved experiment matrix to {filename}")
 
 def loadExperimentMatrixFromJson(filename: str) -> List[List[int]]:
+    """Load the experiment matrix from a JSON file."""
     with open(filename, 'r') as f:
         data = json.load(f)
         return data.get('matrix', [])
     
 def runFromGui(gui, delay_min: float = 0):
+    """Run the experiment from the GUI, using a background thread."""
     try:
         if gui.experiment_runner and gui.experiment_runner.isRunning():
             gui.logMessage("Experiment is already running.")

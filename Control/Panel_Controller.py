@@ -59,22 +59,21 @@ class ValveController:
         button.setStyleSheet(f"color: black; background-color: {color};")
 
         msg = f"Valve {valve_id} {state}"
-        # if user_triggered and self.logger:
-        #     print(msg)
-
+    
         if self.control_box:
-            # Send command to control box
             self.control_box.setValveState(valve_id, is_on)
             self.control_box.flush()
         else:
             print("ControlBox not connected or not available.")
 
     def valveOnAll(self):
+        """Turn on all valves by toggling all buttons on."""
         for btn in self.buttons.values():
             if btn.isVisible() and btn.isEnabled() and not btn.isChecked():
                 btn.setChecked(True)
 
     def valveOffAll(self):
+        """Turn off all valves by toggling all buttons off."""
         for btn in self.buttons.values():
             if btn.isVisible() and btn.isEnabled() and btn.isChecked():
                 btn.setChecked(False)
@@ -122,6 +121,7 @@ class PumpController:
 
 
 class FlushTask(QRunnable):
+    """A task to flush the control box in a separate thread."""
     def __init__(self, flush_function):
         super().__init__()
         self.flush_function = flush_function

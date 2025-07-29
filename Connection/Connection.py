@@ -14,7 +14,7 @@ class Connection(QObject):
     def __init__(self):
         super().__init__()
         self.valve_states: Dict[int, bool] = {}  # Global valve state map
-        self.devices: List[Device] = []             # List of connected Device instances
+        self.devices: List[Device] = []          # List of connected Device instances
         config_path = "Connection/Valve_Port_Map.json"
         if os.path.exists(config_path):
             with open(config_path, "r") as f:
@@ -23,6 +23,7 @@ class Connection(QObject):
             print(f"Warning: {config_path} not found.")
 
     def scanForDevices(self):
+        """Scan for available devices and update their states."""
         port_infos = sorted(comports(), key=lambda p: p.device)
         seen_hwids = {d.port_info.hwid for d in self.devices if d.port_info}
 
@@ -57,12 +58,7 @@ class Connection(QObject):
                     print(f"Port {port} not in PORT_TO_START, assigning defaults")
                     new_device.start_number = 0
                     new_device.polarities = [False, False, False]
-                # if port in self.PORT_TO_START:
-                #     new_device.start_number = self.PORT_TO_START[port]
-                # else:
-                #     print(f"Port {port} not in PORT_TO_START, assigning start_number = 0")
-                #     new_device.start_number = 0 
-
+        
                 new_device.connect()
                 self.devices.append(new_device)
 
@@ -86,27 +82,33 @@ class Connection(QObject):
         return port_infos
 
     def disconnectAll(self):
+        """Disconnect all devices."""
         for device in self.devices:
             device.disconnect()
 
     def setValveState(self, number: int, state: bool): 
+        """Set the state of a specific valve."""
         self.valve_states[number] = state
         self.flush()
         self.valveStateChanged.emit(number, state)
 
     def setValveStates(self, state_dict: Dict[int, bool]):
+        """Set multiple valve states from a dictionary."""
         for number, state in state_dict.items():
             self.setValveState(number, state)
         self.flush()
 
     def getValveState(self, number: int) -> bool:
+        """Get the state of a specific valve."""
         return self.valve_states.get(number, False)
 
     def flush(self):
+        """Flush the current valve states to all connected devices."""
         for device in self.devices:
             device.setValves(self.valve_states)
 
     def getConnectedValveIds(self) -> List[int]:
+        """Get a list of valve IDs for all connected devices."""
         ids = []
         for device in self.devices:
             if device.enabled and device.isConnected():
@@ -126,9 +128,11 @@ class Device:
         self.solenoid_states = [False] * 24
 
     def isConnected(self):
+        """Check if the device is connected."""
         return self.serial_port is not None and self.serial_port.is_open
 
     def connect(self):
+        """Connect to the device if not already connected."""
         if self.isConnected() or not self.port_info:
             return
         try:
@@ -143,12 +147,14 @@ class Device:
             self.serial_port = None
 
     def disconnect(self):
+        """Disconnect from the device."""
         if self.isConnected():
             self.serial_port.close()
             print(f"Disconnected from {self.port_info.device}")
         self.serial_port = None
 
     def setValves(self, global_states: Dict[int, bool]):
+        """Set the states of valves based on global states."""
         if not self.enabled or not self.isConnected():
             return
 
@@ -164,24 +170,25 @@ class Device:
         self.write(b'C' + c)
 
     def flush(self):
+        """Flush the serial port to ensure all data is sent."""
         if self.serial_port:
             self.serial_port.flush()
 
     def write(self, data):
+        """Write data to the serial port."""
         if self.serial_port:
             try:
                 self.serial_port.write(data)
             except Exception as e:
                 print(f"Write failed on {self.port_info.device}: {e}")
 
-
 def convertToByte(bits: List[bool]) -> bytes:
+    """Convert a list of boolean values to a single byte."""
     value = 0
     for i, bit in enumerate(bits):
         if bit:
             value |= 1 << i
     return bytes([value])
-
 
 def refreshDeviceList():
     """Refresh the list of available serial ports."""
