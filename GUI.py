@@ -408,7 +408,6 @@ class MainWindow(QMainWindow):
                 if button:
                     # Clear old position
                     old_row, old_col = self.valve_panel.valve_controller.positions[valve_id]
-                    # self.valve_panel.slot_grid[(old_row, old_col)].setValveButton(QWidget())
                     self.valve_panel.slot_grid[(old_row, old_col)].clearSlot()
                     
                     # Set to new position

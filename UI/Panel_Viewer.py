@@ -124,12 +124,19 @@ class ValvePanel(QWidget):
                 slot = ValveSlots(i, j, self)
                 self.grid_layout.addWidget(slot, i, j)
                 self.slot_grid[(i, j)] = slot
-                  
+
+        valve_id = 0        
         for i in range(self.rows):
             for j in range(self.cols):
-                valve_id = i * self.cols + j
                 if valve_id >= 48:    #### Change this to the number of valves you want ####
                     break
+                # valve_id = i * self.cols + j
+                # if valve_id >= 48:    #### Change this to the number of valves you want ####
+                #     break
+
+                # print check for valve 43
+                if valve_id == 43:
+                    print(f"Found valve 43 at position ({i}, {j})")
 
                 btn = DraggableValveButton(f"{valve_id} - CLOSE", valve_id, self)
                 btn.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -143,9 +150,18 @@ class ValvePanel(QWidget):
                 btn.setStyleSheet(f"color: black; background-color: {self.valve_controller.btn_off_color};")
                 btn.toggled.connect(self.handleValveToggle)
 
+                # check overwrite in valve 43 position
+                if (i, j) in self.slot_grid and self.slot_grid[(i, j)].layout.count() > 0:
+                    print(f"Warning: overwriting slot ({i}, {j}) with valve {valve_id}")
+
+
                 self.slot_grid[(i, j)].setValveButton(btn)
                 self.valve_controller.buttons[valve_id] = btn
                 self.valve_controller.positions[valve_id] = (i, j)
+
+                valve_id += 1
+            if valve_id >= 48:    #### Change this to the number of valves you want
+                break
 
           
         self.setLayout(valve_panel_layout)
@@ -224,7 +240,7 @@ class ValvePanel(QWidget):
             button.show()
 
         self.deleted_buttons.clear()
-        
+
         for valve_id, button in self.valve_controller.buttons.items():
             default_row, default_col = divmod(valve_id, self.cols)
             self.slot_grid[(default_row, default_col)].setValveButton(button)
@@ -259,7 +275,6 @@ class BorderSpacer(QLabel):
             self.setFixedWidth(1)
         else:
             self.setFixedHeight(1)
-
 
 class DraggableValveButton(QPushButton):
     def __init__(self, text, valve_id, parent=None):
