@@ -58,20 +58,16 @@ class ValvePanel(QWidget):
         # Control buttons for all valves
         control_all_layout = QHBoxLayout()
         self.toggle_all_on_btn = QPushButton("All Valves - OPEN")
-        self.toggle_all_on_btn.setCheckable(True)
-        self.toggle_all_on_btn.setMinimumSize(50, 50)
         self.toggle_all_on_btn.setFixedSize(200, 30)
         self.toggle_all_on_btn.setStyleSheet("color: black; background-color: lightgrey;")
-        self.toggle_all_on_btn.toggled.connect(self.valve_controller.valveOnAll)
+        self.toggle_all_on_btn.clicked.connect(self.valve_controller.valveOnAll)
         control_all_layout.addWidget(self.toggle_all_on_btn)
         valve_panel_layout.addLayout(control_all_layout)
 
         self.toggle_all_off_btn = QPushButton("All Valves - CLOSE")
-        self.toggle_all_off_btn.setCheckable(True)
-        self.toggle_all_off_btn.setMinimumSize(50, 50)
         self.toggle_all_off_btn.setFixedSize(200, 30)
         self.toggle_all_off_btn.setStyleSheet("color: black; background-color: lightgrey;")
-        self.toggle_all_off_btn.toggled.connect(self.valve_controller.valveOffAll) 
+        self.toggle_all_off_btn.clicked.connect(self.valve_controller.valveOffAll)
         control_all_layout.addWidget(self.toggle_all_off_btn)
 
         self.reset_all_btn = QPushButton("Reset All Valves")
