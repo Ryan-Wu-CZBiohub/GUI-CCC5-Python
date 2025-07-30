@@ -107,7 +107,7 @@ def setMuxValves(connection: Connection, mux_valves: List[int], index: int):
 def adjusted_sleep(duration: float, test_mode: bool):
     """Sleep for the given duration, sped up in test mode."""
     if test_mode:
-        time.sleep(duration / 100.0)
+        time.sleep(duration / 180.0)
     else:
         time.sleep(duration)
 
@@ -280,7 +280,7 @@ class ExperimentRunner(QRunnable):
         try:
             from Experiment.CCC5P2_experiment import generateExperimentMatrix, runExperimentMatrix
             
-            time_scale = 1 / 100 if self.test_mode else 1.0  # Scale down the experiment time by 60x for testing
+            time_scale = 1 / 180 if self.test_mode else 1.0  # Scale down the experiment time by 60x for testing
             test_mode = self.test_mode
 
             expMatrix = generateExperimentMatrix(time_scale=time_scale)
