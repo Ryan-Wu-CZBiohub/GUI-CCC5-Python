@@ -228,8 +228,14 @@ def runExperimentMatrix(connection: Connection, matrix_mat: List[List[int]], del
 def saveExperimentMatrixToJson(filename: str, matrix: List[List[int]]):
     """Save the experiment matrix to a JSON file."""
     with open(filename, 'w') as f:
-        json.dump({'matrix': matrix}, f, indent=2)
-        print(f"Saved experiment matrix to {filename}")
+        f.write('{\n  "matrix": [\n')
+        for i, row in enumerate(matrix):
+            line = '    ' + json.dumps(row)
+            if i < len(matrix) - 1:
+                line += ','
+            f.write(line + '\n')
+        f.write('  ]\n}')
+    print(f"Saved experiment matrix to {filename}")
 
 def loadExperimentMatrixFromJson(filename: str) -> List[List[int]]:
     """Load the experiment matrix from a JSON file."""
