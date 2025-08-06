@@ -20,7 +20,7 @@ from Connection.Connection import Connection
 class ValveController:
     def __init__(self, valve_panel=None, logger=None, control_box: Connection = None):
         self.btn_off_color = "rgb(255, 255, 55)"     # Yellow for "CLOSED"
-        self.btn_on_color = "rgb(230, 230, 230)"     # Light gray for "OPEN"
+        self.btn_on_color = "rgb(36, 250, 7)"        # Green for "OPEN"
         self.buttons = {}
         self.positions = {} 
         self.valve_panel = valve_panel
