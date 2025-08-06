@@ -22,7 +22,7 @@ except NameError:
 
 sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..')))
 from Connection.Connection import Connection
-from Experiment.experiment_config import (
+from experiment_config import (
     EXPERIMENT_NAME,
     EXPERIMENT_TOTAL_TIME,
     EXPERIMENT_CONFIG,
