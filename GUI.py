@@ -31,6 +31,7 @@ from Connection.Connection import Connection, Device
 from Control.Panel_Controller import ValveController, PumpController
 from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
 from Experiment.CCC5P2_experiment import ExperimentRunner
+from Experiment.CCC5P2_Prefill import PrefillCoatingRunner
 
 
 class MainWindow(QMainWindow):
@@ -151,6 +152,14 @@ class MainWindow(QMainWindow):
         scripts_layout = QVBoxLayout(self.scripts_panel)
         scripts_layout.setContentsMargins(5, 5, 5, 5)
 
+        self.prefill_script_button = QPushButton("Run Prefill Coating")
+        self.prefill_script_button.clicked.connect(self.runPrefillCoating)
+        scripts_layout.addWidget(self.prefill_script_button)
+
+        self.stop_prefill_button = QPushButton("Stop Prefill Coating")
+        self.stop_prefill_button.clicked.connect(self.stopPrefillCoating)
+        scripts_layout.addWidget(self.stop_prefill_button)
+
         self.load_scripts_button = QPushButton("Load Script")
         self.load_scripts_button.clicked.connect(self.loadScripts)
         scripts_layout.addWidget(self.load_scripts_button)
@@ -186,6 +195,27 @@ class MainWindow(QMainWindow):
         # | QDockWidget.DockWidgetClosable
         # )
         # self.addDockWidget(Qt.RightDockWidgetArea, port_dock)
+
+    def runPrefillCoating(self):
+        """Run the prefill coating experiment."""
+        if hasattr(self, "prefill_runner") and self.prefill_runner and self.prefill_runner.isRunning():
+            self.logMessage("Prefill coating is already running.")
+            return
+
+        try:
+            # self.logMessage("Starting prefill coating in background...")
+            self.prefill_runner = PrefillCoatingRunner(self, feed_time=1, cycles=2)
+            QThreadPool.globalInstance().start(self.prefill_runner)
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            self.logMessage(f"Error running prefill coating: {e}")
+            self.logMessage(tb)
+
+    def stopPrefillCoating(self):
+        if hasattr(self, 'prefill_runner') and self.prefill_runner.isRunning():
+            self.prefill_runner.stop()
+            # self.logMessage("Stopping prefill coating...")
 
     def loadScripts(self):
         """Load and execute any experiment scripts."""
