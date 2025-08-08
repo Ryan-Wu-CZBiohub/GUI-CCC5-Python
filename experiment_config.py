@@ -8,25 +8,46 @@ and experiment matrix structure.
 
 # Experiment metadata
 EXPERIMENT_NAME = "CCC5P2 Keratinocytes Experiment"
-EXPERIMENT_TOTAL_TIME = 2880  # Total experiment time in minutes (48 hours)
+EXPERIMENT_TOTAL_TIME = 1440  # Total experiment time in minutes (24 hours)
 
 # Sequence of valve IDs used for input control
 VALVE_INPUT_SEQUENCE = [24] + list(range(46, 27, -1))  # Fresh media + inputs 1–18
 
-# Mapping of logical valve roles to physical valve IDs on the chip
+# Mapping of logical valve roles to physical valve IDs on the chip (1-based indexing)
 VALVE_ID = {
-    "mux": [26, 23, 22, 21, 20, 19, 18, 17],  # Multiplexer selection lines
-    "purge": 27,                              # Media purge valve
-    "fresh": 24,                              # Fresh medium supply
-    "bypass": [14, 11, 8, 5, 2],              # Bypass valves for rows 1–5
-    "chamberIn": [                            # L/R valve pairs per row (row 1–5)
-        [16, 15], [13, 12], [10, 9], [7, 6], [4, 3]
-    ],
-    "muxIn": 25                               # MUX input path valve
+    "mux": [26, 23, 22, 21, 20, 19, 18, 17],
+    "purge": 27,
+    "fresh": 24,
+    "bypass": {
+        1: 14,
+        2: 11,
+        3: 8,
+        4: 5,
+        5: 2
+    },
+    "chamberIn": {
+        1: [16, 15],
+        2: [13, 12],
+        3: [10, 9],
+        4: [7, 6],
+        5: [4, 3]
+    },
+    "muxIn": 25,
+    "outlet": 0
 }
 
-# Timing parameters (in seconds)
-TIMING_CONFIG = {
+# TEST MODE
+TEST_MODE = False  # Set to True for testing
+
+# Coating configuration
+COATING_CONFIG = {
+    "feedTime": 60,
+    "waitTime": 3,
+    "cycles": 2
+}
+
+# Experiment timing parameters (in seconds)
+EXPERIMENT_TIMING_CONFIG = {
     "purgeTime1": 5,
     "purgeTime2": 10,
     "purgeTime3": 5,
@@ -63,31 +84,32 @@ INPUT_TO_CONTROL_MAP = {
 
 # Core experiment configuration matrix (feeding schedules)
 # Each block feeds one row with specific inputs at defined time intervals.
+# Adding 1 to EXPERIMENT_TOTAL_TIME to account for Python's 0-based indexing
 EXPERIMENT_CONFIG = [
     {
         "row": 1,
-        "intervals": list(range(0, 2881, 60)),  # Every 60 min
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 60)),  # Every 60 min
         "column_to_input": {
             i: i for i in range(1, 17)
         }
     },
     {
         "row": 2,
-        "intervals": list(range(0, 2881, 120)),  # Every 120 min
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 120)),  # Every 120 min
         "column_to_input": {
             i: i for i in range(1, 17)
         }
     },
     {
         "row": 3,
-        "intervals": list(range(0, 2881, 240)),  # Every 240 min
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 240)),  # Every 240 min
         "column_to_input": {
             i: i for i in range(1, 17)
         }
     },
     {
         "row": 4,
-        "intervals": list(range(0, 2881, 480)),  # Every 480 min
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 480)),  # Every 480 min
         "column_to_input": {
             i: i for i in range(1, 17)
         }
@@ -96,28 +118,28 @@ EXPERIMENT_CONFIG = [
     # Row 5: IL-17A high-dose and control groups with different feeding frequencies
     {
         "row": 5,
-        "intervals": list(range(0, 2881, 60)),  # Every hour
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 60)),  # Every hour
         "column_to_input": {
             1: 17, 2: 18, 3: 0, 4: 0
         }
     },
     {
         "row": 5,
-        "intervals": list(range(0, 2881, 120)),  # Every 2 hours
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 120)),  # Every 2 hours
         "column_to_input": {
             5: 17, 6: 18, 7: 0, 8: 0
         }
     },
     {
         "row": 5,
-        "intervals": list(range(0, 2881, 240)),  # Every 4 hours
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 240)),  # Every 4 hours
         "column_to_input": {
             9: 17, 10: 18, 11: 0, 12: 0
         }
     },
     {
         "row": 5,
-        "intervals": list(range(0, 2881, 480)),  # Every 8 hours
+        "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 480)),  # Every 8 hours
         "column_to_input": {
             13: 17, 14: 18, 15: 0, 16: 0
         }

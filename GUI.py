@@ -32,6 +32,7 @@ from Control.Panel_Controller import ValveController, PumpController
 from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
 from Experiment.CCC5P2_experiment import ExperimentRunner
 from Experiment.CCC5P2_Prefill import PrefillCoatingRunner
+from Experiment_Config import TEST_MODE, COATING_CONFIG
 
 
 class MainWindow(QMainWindow):
@@ -204,7 +205,7 @@ class MainWindow(QMainWindow):
 
         try:
             # self.logMessage("Starting prefill coating in background...")
-            self.prefill_runner = PrefillCoatingRunner(self, feed_time=1, cycles=2)
+            self.prefill_runner = PrefillCoatingRunner(self, test_mode=TEST_MODE)
             QThreadPool.globalInstance().start(self.prefill_runner)
         except Exception as e:
             import traceback
@@ -244,7 +245,7 @@ class MainWindow(QMainWindow):
             exec(self.script_code, script_globals)
 
             self.logMessage(f"Running {self.loaded_script_path} from script...")
-            runner = ExperimentRunner(self, test_mode=False)
+            runner = ExperimentRunner(self, test_mode=TEST_MODE, time_scale=1)
             QThreadPool.globalInstance().start(runner)
 
         except Exception as e:
@@ -252,6 +253,7 @@ class MainWindow(QMainWindow):
             tb = traceback.format_exc()
             self.logMessage(f"Error running script: {e}")
             self.logMessage(tb)
+
     @Slot(str)
     def logMessage(self, message: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

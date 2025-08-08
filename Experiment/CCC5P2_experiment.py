@@ -28,7 +28,8 @@ from Experiment_Config import (
     EXPERIMENT_CONFIG,
     INPUT_TO_CONTROL_MAP,
     VALVE_ID,
-    TIMING_CONFIG,
+    EXPERIMENT_TIMING_CONFIG,
+    TEST_MODE,
     offset_schedule
 )
 
@@ -64,22 +65,25 @@ def generateExperimentMatrix(time_scale=1.0) -> List[List[int]]:
     expMatrix.sort(key=lambda row: row[0])
     return expMatrix
 
-def setMuxValvesForExperiment(connection: Connection, mux_valves: List[int], index: int):
-    states = {vid: 0 for vid in mux_valves}
-    if 0 <= index < len(mux_valves):
-        states[mux_valves[index]] = 1
-    connection.setValveStates(states)
-
-def setMuxValvesForPrefill(connection, mux_valves, column_index, scr_update=print):
+def setMuxValves(connection, mux_valves, column_index, scr_update=print, label=""):
     """
-    Set MUX valves for prefill coating by column index (1–16).
-    Matches the naming style of setMuxValvesForExperiment.
+    Set MUX valves for CCC5P2 (1–16).
 
     mux_valves: [26, 23, 22, 21, 20, 19, 18, 17]  # ordered list of MUX valve IDs
     column_index: 1–16 (column number), or 98 (all open), 99 (all closed)
     """
-    if column_index not in list(range(1, 17)) + [98, 99]:
-        scr_update("Invalid column index for prefill")
+    if len(mux_valves) != 8:
+        scr_update("Error: mux_valves must contain exactly 8 valve IDs.")
+        return
+
+    try:
+        column_index = int(column_index)
+    except (TypeError, ValueError):
+        scr_update(f"Invalid mux setting for column index (non-integer): {column_index}")
+        return
+
+    if column_index not in range(1, 17) and column_index not in (98, 99):
+        scr_update(f"Invalid mux setting for column index: {column_index}")
         return
 
     # Special debug/override modes
@@ -88,24 +92,27 @@ def setMuxValvesForPrefill(connection, mux_valves, column_index, scr_update=prin
     elif column_index == 99:
         mux_states = [0] * 8
     else:
-        # Define column-based logic groups
-        group_1_8 = set(range(1, 9))
-        group_9_16 = set(range(9, 17))
-        group_quarter_1 = set(range(1, 5)) | set(range(9, 13))
-        group_quarter_2 = set(range(5, 9)) | set(range(13, 17))
-        group_mux1 = {1, 2, 5, 6, 9, 10, 13, 14}
-        group_odd = set(range(1, 17, 2))  # 1, 3, 5, ..., 15
+        # Column groupings for logical MUX control bits
+        columns_1_to_8 = set(range(1, 9))                               # bit 0
+        columns_9_to_16 = set(range(9, 17))                             # bit 1
+        top_half_columns = set(range(1, 5)) | set(range(9, 13))         # bit 2
+        bottom_half_columns = set(range(5, 9)) | set(range(13, 17))     # bit 3
+        mux_group_A = {1, 2, 5, 6, 9, 10, 13, 14}                       # bit 4
+        mux_group_B = set(range(1, 17)) - mux_group_A                   # bit 5
+        odd_columns = set(range(1, 17, 2))                              # bit 6
+        even_columns = set(range(2, 17, 2))                             # bit 7
 
         mux_states = [
-            int(column_index in group_1_8),      # bit 1
-            int(column_index in group_9_16),     # bit 2
-            int(column_index in group_quarter_1),# bit 3
-            int(column_index in group_quarter_2),# bit 4
-            int(column_index in group_mux1),     # bit 5
-            int(column_index not in group_mux1), # bit 6
-            int(column_index in group_odd),      # bit 7
-            int(column_index % 2 == 0),          # bit 8 (even)
+            int(column_index in columns_1_to_8),        # bit 0
+            int(column_index in columns_9_to_16),       # bit 1
+            int(column_index in top_half_columns),      # bit 2
+            int(column_index in bottom_half_columns),   # bit 3
+            int(column_index in mux_group_A),           # bit 4
+            int(column_index in mux_group_B),           # bit 5
+            int(column_index in odd_columns),           # bit 6
+            int(column_index in even_columns),          # bit 7
         ]
+
 
     valve_states = {
         valve_id: bool(state)
@@ -113,93 +120,114 @@ def setMuxValvesForPrefill(connection, mux_valves, column_index, scr_update=prin
     }
 
     connection.setValveStates(valve_states)
-    scr_update(f" Prefill MUX set for column {column_index}")
-
+    scr_update(f"MUX set for column {column_index}")
 
 def adjusted_sleep(duration: float, test_mode: bool):
     time.sleep(duration / 180.0 if test_mode else duration)
 
 def runExperimentMatrix(
-        connection: Connection, 
-        matrix_mat: List[List[int]], 
-        delay_min=60, 
-        bypass_on=False, 
-        test_mode=False,
-        log_fn: Callable[[str], None] = print
-    ):
+    connection: Connection,
+    matrix_mat: List[List[int]],
+    delay_min=60,
+    bypass_on=False,
+    test_mode= False,
+    log_fn: Callable[[str], None] = print
+):
     log = []
     start_time = datetime.datetime.now()
-    delta_fn = (lambda t: datetime.timedelta(seconds=t)) if test_mode else (lambda t: datetime.timedelta(minutes=t))
+    delta = lambda t: datetime.timedelta(seconds=t) if test_mode else datetime.timedelta(minutes=t)
     now = start_time
-    exp_matrix_adj = [[now + delta_fn(row[0] + delay_min)] + row[1:] for row in matrix_mat]
+    schedule = [[now + delta(row[0] + delay_min)] + row[1:] for row in matrix_mat]
 
-    for row in exp_matrix_adj:
-        scheduled_time, input_valve, row_num, col_num, side, _ = row
-        sleep_step = 0.5 if not test_mode else 0.01
+    def log_mux(column_index, label):
+        setMuxValves(connection, VALVE_ID["mux"], column_index, lambda msg: log_fn(f"{label} → {msg}"))
+
+    def validate_column(col):
+        try:
+            col = int(col)
+            if 1 <= col <= 16:
+                return col
+            log_fn(f"[WARNING] Invalid column index: {col}")
+        except Exception:
+            log_fn(f"[ERROR] Non-integer column index: {col}")
+        return None
+
+    for row in schedule:
+        scheduled_time, input_valve, row_num, col_num_raw, side, _ = row
+        col_num = validate_column(col_num_raw)
+        if col_num is None:
+            continue
+
+        # Wait until scheduled time
         while datetime.datetime.now() < scheduled_time:
-            time.sleep(sleep_step)
+            time.sleep(0.01 if TEST_MODE else 0.5)
 
-        row_idx = row_num - 1
-        mux_idx = col_num - 1
+        log_mux(col_num, "Feeding")
 
-        # Mux setup
-        setMuxValvesForExperiment(connection, VALVE_ID["mux"], mux_idx)
-
-        # Open path
-        connection.setValveState(VALVE_ID["bypass"][row_idx], True)
+        # Valve sequence: prefill → feed → cleanup
+        connection.setValveState(VALVE_ID["bypass"][row_num], True)
         connection.setValveState(input_valve, True)
         connection.setValveState(VALVE_ID["muxIn"], True)
         connection.setValveState(VALVE_ID["purge"], True)
-        adjusted_sleep(TIMING_CONFIG["purgeTime1"], test_mode)
+        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime1"], TEST_MODE)
 
         connection.setValveState(VALVE_ID["purge"], False)
-        adjusted_sleep(TIMING_CONFIG["prefillTime"], test_mode)
+        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["prefillTime"], TEST_MODE)
 
         if not bypass_on:
-            connection.setValveState(VALVE_ID["bypass"][row_idx], False)
+            connection.setValveState(VALVE_ID["bypass"][row_num], False)
 
-        left, right = VALVE_ID["chamberIn"][row_idx]
-        if side == 0: connection.setValveState(left, True)
-        elif side == 1: connection.setValveState(right, True)
+        left_valve, right_valve = VALVE_ID["chamberIn"][row_num]
+        if side == 0:
+            connection.setValveState(left_valve, True)
+        elif side == 1:
+            connection.setValveState(right_valve, True)
         elif side == 2:
-            connection.setValveState(left, True)
-            connection.setValveState(right, True)
+            connection.setValveState(left_valve, True)
+            connection.setValveState(right_valve, True)
 
-        adjusted_sleep(TIMING_CONFIG["feedTime"], test_mode)
+        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["feedTime"], TEST_MODE)
 
-        connection.setValveState(left, False)
-        connection.setValveState(right, False)
-        connection.setValveState(VALVE_ID["bypass"][row_idx], True)
+        log_mux(col_num, "Cleaning")
+
+        connection.setValveState(left_valve, False)
+        connection.setValveState(right_valve, False)
+        connection.setValveState(VALVE_ID["bypass"][row_num], True)
         connection.setValveState(input_valve, False)
-        adjusted_sleep(1, test_mode)
+        adjusted_sleep(1, TEST_MODE)
 
         connection.setValveState(VALVE_ID["purge"], True)
         connection.setValveState(VALVE_ID["fresh"], True)
-        adjusted_sleep(TIMING_CONFIG["purgeTime2"], test_mode)
-        connection.setValveState(VALVE_ID["purge"], False)
-        adjusted_sleep(TIMING_CONFIG["purgeTime3"], test_mode)
+        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime2"], TEST_MODE)
 
-        # Cleanup
+        connection.setValveState(VALVE_ID["purge"], False)
+        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime3"], TEST_MODE)
+
+        # Final valve state cleanup
         connection.setValveState(VALVE_ID["fresh"], False)
         connection.setValveState(VALVE_ID["muxIn"], False)
-        setMuxValvesForExperiment(connection, VALVE_ID["mux"], -1)
         for vid in VALVE_ID["bypass"]:
             connection.setValveState(vid, False)
 
+        # Log experiment step
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         log.append({
-            "type": "feed", "valve": input_valve, "row": row_num,
-            "col": col_num, "side": side, "timestamp": timestamp
+            "type": "feed",
+            "valve": input_valve,
+            "row": row_num,
+            "col": col_num,
+            "side": side,
+            "timestamp": timestamp
         })
         log_fn(f"{timestamp} → Feed Input Valve {input_valve} → Row {row_num}, Column {col_num}, Side {side}")
-        # print(f"{timestamp} → Feed Input Valve {input_valve} → Row {row_num}, Column {col_num}, Side {side}")
 
-    # Final cleanup
+    # Global valve shutdown
     log_fn("Experiment completed. Closing all valves...")
-    # print("Experiment completed. Closing all valves...")
-    all_valves = {v for v in range(28, 47)} | set(sum(VALVE_ID["chamberIn"], [])) | \
-                 set(VALVE_ID["mux"]) | set(VALVE_ID["bypass"]) | \
-                 {VALVE_ID["purge"], VALVE_ID["fresh"], VALVE_ID["muxIn"]}
+    all_valves = set(range(28, 47)) \
+        | set(valve for pair in VALVE_ID["chamberIn"] for valve in pair) \
+        | set(VALVE_ID["mux"]) | set(VALVE_ID["bypass"]) \
+        | {VALVE_ID["purge"], VALVE_ID["fresh"], VALVE_ID["muxIn"]}
+
     for vid in all_valves:
         connection.setValveState(vid, False)
 
@@ -218,7 +246,7 @@ def runExperimentMatrix(
             "duration_min": (end_time - start_time).total_seconds() / 60,
             "delay_min": delay_min,
             "bypass_on": bypass_on,
-            "test_mode": test_mode,
+            "test_mode": TEST_MODE,
             "num_feeds": len([e for e in log if e["type"] == "feed"])
         },
         "expLog": log
@@ -242,14 +270,14 @@ def loadExperimentMatrixFromJson(filename: str) -> List[List[int]]:
         data = json.load(f)
         return data.get('matrix', [])
 
-def runFromGui(gui, delay_min: float = 0):
+def runFromGui(gui, delay_min: float = 0, test_mode: bool = False, time_scale: float = 1.0):
     try:
         if gui.experiment_runner and gui.experiment_runner.isRunning():
             gui.logMessage("Experiment is already running.")
             return
 
         gui.logMessage("Starting experiment in background...")
-        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=False)
+        runner = ExperimentRunner(gui, delay_min=delay_min, test_mode=TEST_MODE, time_scale=time_scale)
     except Exception as e:
         tb = traceback.format_exc()
         gui.logMessage(f"Error running experiment: {e}")
@@ -257,11 +285,12 @@ def runFromGui(gui, delay_min: float = 0):
         print(tb)
 
 class ExperimentRunner(QRunnable):
-    def __init__(self, gui, delay_min=0, test_mode=False):
+    def __init__(self, gui, delay_min=0, test_mode=False, time_scale=1.0):
         super().__init__()
         self.gui = gui
         self.delay_min = delay_min
-        self.test_mode = test_mode
+        self.test_mode = TEST_MODE
+        self.time_scale = time_scale
         self._pause_event = Event()
         self._pause_event.set()
         self._is_running = True
@@ -269,8 +298,7 @@ class ExperimentRunner(QRunnable):
     @Slot()
     def run(self):
         try:
-            time_scale = 1/180 if self.test_mode else 1.0
-            expMatrix = generateExperimentMatrix(time_scale=time_scale)
+            expMatrix = generateExperimentMatrix(time_scale=self.time_scale)
             saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
             connection = self.gui.control_box
             expResults = runExperimentMatrix(
@@ -297,7 +325,7 @@ class ExperimentRunner(QRunnable):
     def isRunning(self): return self._is_running
 
 def main():
-    test_mode = True
+    test_mode = TEST_MODE
     time_scale = 1/100 if test_mode else 1.0
     expMatrix = generateExperimentMatrix(time_scale=time_scale)
     saveExperimentMatrixToJson("CCC5p2_ExpMatrix_Test.json", expMatrix)

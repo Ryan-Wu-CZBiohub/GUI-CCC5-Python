@@ -11,10 +11,11 @@ except NameError:
 from time import sleep
 from threading import Event
 from PySide6.QtCore import QRunnable, QTimer
-from Experiment_Config import VALVE_ID
-from Experiment.CCC5P2_experiment import setMuxValvesForPrefill
+from Experiment_Config import VALVE_ID, COATING_CONFIG, TEST_MODE
+from Experiment.CCC5P2_experiment import setMuxValves
 
-def runPrefillCoating(connection, scr_update=None, stop_event=None, feed_time=100, cycles=2):
+def runPrefillCoating(connection, scr_update=None, stop_event=None,
+                      feed_time=None, wait_time=None, cycles=None, test_mode=TEST_MODE):
     """
     Run prefill coating:
     - All chambers open
@@ -26,17 +27,30 @@ def runPrefillCoating(connection, scr_update=None, stop_event=None, feed_time=10
     """
     if scr_update is None:
         scr_update = lambda msg: None  # Do nothing
+    
+    # test mode
+    if test_mode:
+        feed_time = 2
+        wait_time = 1
+        cycles = 2
+
+    else:
+        feed_time = feed_time or COATING_CONFIG["feedTime"]
+        wait_time = wait_time or COATING_CONFIG["waitTime"]
+        cycles = cycles or COATING_CONFIG["cycles"]
 
     scr_update("Starting prefill coating...")
-    ...
 
     # initial valve setup
     connection.setValveState(VALVE_ID["muxIn"], True)
     connection.setValveState(VALVE_ID["fresh"], True)
-    connection.setValveStates({vid: False for vid in VALVE_ID["bypass"]})
-    connection.setValveStates({vid: True for pair in VALVE_ID["chamberIn"] for vid in pair})
+    connection.setValveState(VALVE_ID["outlet"], True)
 
-    sleep(5)
+    connection.setValveStates({vid: False for vid in VALVE_ID["bypass"].values()})
+    connection.setValveStates({vid: True for pair in VALVE_ID["chamberIn"].values() for vid in pair})
+
+
+    sleep(wait_time)
 
     # Coating process
     for cycle in range(cycles):
@@ -44,22 +58,24 @@ def runPrefillCoating(connection, scr_update=None, stop_event=None, feed_time=10
             if stop_event and stop_event.is_set():
                 scr_update("Prefill coating stopped by user.")
                 return
-            setMuxValvesForPrefill(connection, VALVE_ID["mux"], col)
+            setMuxValves(connection, VALVE_ID["mux"], col)
             scr_update(f"Cycle {cycle+1}: Coating column {col}")
             sleep(feed_time)
 
-    sleep(5)
-    
+    sleep(wait_time)
+
     # final cleanup
     scr_update("Prefill coating complete. Opening all valves, closing fresh_in.")
     connection.setValveStates({vid: True for vid in range(48)})
     connection.setValveState(VALVE_ID["fresh"], False)
 
 class PrefillCoatingRunner(QRunnable):
-    def __init__(self, gui, feed_time=100, cycles=2):
+    def __init__(self, gui, test_mode=False, feed_time=None, wait_time=None, cycles=None):
         super().__init__()
         self.gui = gui
+        self.test_mode = test_mode
         self.feed_time = feed_time
+        self.wait_time = wait_time
         self.cycles = cycles
         self._stop_event = Event()
         self._is_running = True
@@ -77,7 +93,9 @@ class PrefillCoatingRunner(QRunnable):
                 scr_update=self.gui.logMessage,
                 stop_event=self._stop_event,
                 feed_time=self.feed_time,
-                cycles=self.cycles
+                wait_time=self.wait_time,
+                cycles=self.cycles,
+                test_mode=self.test_mode
             )
             QTimer.singleShot(0, lambda: self.gui.logMessage("Prefill coating completed."))
         except Exception as e:
@@ -100,8 +118,8 @@ if __name__ == "__main__":
             connection=conn,
             scr_update=print,
             stop_event=None,
-            feed_time=5,
-            cycles=1
+            feed_time=COATING_CONFIG["feedTime"],
+            cycles=COATING_CONFIG["cycles"]
         )
     except Exception as e:
         import traceback
