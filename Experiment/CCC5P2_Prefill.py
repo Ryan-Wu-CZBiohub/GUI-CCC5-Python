@@ -12,7 +12,7 @@ from time import sleep
 from threading import Event
 from PySide6.QtCore import QRunnable, QTimer
 from Experiment_Config import VALVE_ID, COATING_CONFIG, TEST_MODE
-from Experiment.CCC5P2_experiment import setMuxValves
+from Experiment.CCC5P2_Experiment import setMuxValves
 
 def runPrefillCoating(connection, scr_update=None, stop_event=None,
                       feed_time=None, wait_time=None, cycles=None, test_mode=TEST_MODE):

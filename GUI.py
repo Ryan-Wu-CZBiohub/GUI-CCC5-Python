@@ -30,7 +30,7 @@ import json
 from Connection.Connection import Connection, Device
 from Control.Panel_Controller import ValveController, PumpController
 from UI.Panel_Viewer import ValvePanel, PumpPanel, PortPanel
-from Experiment.CCC5P2_experiment import ExperimentRunner
+from Experiment.CCC5P2_Experiment import ExperimentRunner
 from Experiment.CCC5P2_Prefill import PrefillCoatingRunner
 from Experiment_Config import TEST_MODE, COATING_CONFIG
 

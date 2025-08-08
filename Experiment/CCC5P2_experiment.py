@@ -130,7 +130,7 @@ def runExperimentMatrix(
     matrix_mat: List[List[int]],
     delay_min=60,
     bypass_on=False,
-    test_mode= False,
+    test_mode=False,
     log_fn: Callable[[str], None] = print
 ):
     log = []
@@ -139,89 +139,114 @@ def runExperimentMatrix(
     now = start_time
     schedule = [[now + delta(row[0] + delay_min)] + row[1:] for row in matrix_mat]
 
-    def log_mux(column_index, label):
-        setMuxValves(connection, VALVE_ID["mux"], column_index, lambda msg: log_fn(f"{label} → {msg}"))
+    log_file_path = os.path.join(BASE_DIR, 'CCC5p2_ExpLog.json')
+    with open(log_file_path, 'w') as log_file:
+        # Begin log file
+        log_file.write('{\n  "metadata": {\n')
+        log_file.write(f'    "experiment_name": "{EXPERIMENT_NAME}",\n')
+        log_file.write(f'    "experiment_total_time_min": {EXPERIMENT_TOTAL_TIME},\n')
+        log_file.write(f'    "start_time": "{start_time.strftime("%Y-%m-%d %H:%M:%S")}",\n')
+        log_file.write(f'    "delay_min": {delay_min},\n')
+        log_file.write(f'    "bypass_on": {str(bypass_on).lower()},\n')
+        log_file.write(f'    "test_mode": {str(test_mode).lower()}\n')
+        log_file.write('  },\n')
+        log_file.write('  "log_entries": [\n')
 
-    def validate_column(col):
-        try:
-            col = int(col)
-            if 1 <= col <= 16:
-                return col
-            log_fn(f"[WARNING] Invalid column index: {col}")
-        except Exception:
-            log_fn(f"[ERROR] Non-integer column index: {col}")
-        return None
+        def log_mux(column_index, label):
+            setMuxValves(connection, VALVE_ID["mux"], column_index, lambda msg: log_fn(f"{label} → {msg}"))
 
-    for row in schedule:
-        scheduled_time, input_valve, row_num, col_num_raw, side, _ = row
-        col_num = validate_column(col_num_raw)
-        if col_num is None:
-            continue
+        def validate_column(col):
+            try:
+                col = int(col)
+                if 1 <= col <= 16:
+                    return col
+                log_fn(f"[WARNING] Invalid column index: {col}")
+            except Exception:
+                log_fn(f"[ERROR] Non-integer column index: {col}")
+            return None
 
-        # Wait until scheduled time
-        while datetime.datetime.now() < scheduled_time:
-            time.sleep(0.01 if TEST_MODE else 0.5)
+        for i, row in enumerate(schedule):
+            scheduled_time, input_valve, row_num, col_num_raw, side, _ = row
+            col_num = validate_column(col_num_raw)
+            if col_num is None:
+                continue
 
-        log_mux(col_num, "Feeding")
+            while datetime.datetime.now() < scheduled_time:
+                time.sleep(0.01 if test_mode else 0.5)
 
-        # Valve sequence: prefill → feed → cleanup
-        connection.setValveState(VALVE_ID["bypass"][row_num], True)
-        connection.setValveState(input_valve, True)
-        connection.setValveState(VALVE_ID["muxIn"], True)
-        connection.setValveState(VALVE_ID["purge"], True)
-        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime1"], TEST_MODE)
+            log_mux(col_num, "Feeding")
 
-        connection.setValveState(VALVE_ID["purge"], False)
-        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["prefillTime"], TEST_MODE)
+            connection.setValveState(VALVE_ID["bypass"][row_num], True)
+            connection.setValveState(input_valve, True)
+            connection.setValveState(VALVE_ID["muxIn"], True)
+            connection.setValveState(VALVE_ID["purge"], True)
+            adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime1"], test_mode)
 
-        if not bypass_on:
-            connection.setValveState(VALVE_ID["bypass"][row_num], False)
+            connection.setValveState(VALVE_ID["purge"], False)
+            adjusted_sleep(EXPERIMENT_TIMING_CONFIG["prefillTime"], test_mode)
 
-        left_valve, right_valve = VALVE_ID["chamberIn"][row_num]
-        if side == 0:
-            connection.setValveState(left_valve, True)
-        elif side == 1:
-            connection.setValveState(right_valve, True)
-        elif side == 2:
-            connection.setValveState(left_valve, True)
-            connection.setValveState(right_valve, True)
+            if not bypass_on:
+                connection.setValveState(VALVE_ID["bypass"][row_num], False)
 
-        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["feedTime"], TEST_MODE)
+            left_valve, right_valve = VALVE_ID["chamberIn"][row_num]
+            if side == 0:
+                connection.setValveState(left_valve, True)
+            elif side == 1:
+                connection.setValveState(right_valve, True)
+            elif side == 2:
+                connection.setValveState(left_valve, True)
+                connection.setValveState(right_valve, True)
 
-        log_mux(col_num, "Cleaning")
+            adjusted_sleep(EXPERIMENT_TIMING_CONFIG["feedTime"], test_mode)
 
-        connection.setValveState(left_valve, False)
-        connection.setValveState(right_valve, False)
-        connection.setValveState(VALVE_ID["bypass"][row_num], True)
-        connection.setValveState(input_valve, False)
-        adjusted_sleep(1, TEST_MODE)
+            log_mux(col_num, "Cleaning")
 
-        connection.setValveState(VALVE_ID["purge"], True)
-        connection.setValveState(VALVE_ID["fresh"], True)
-        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime2"], TEST_MODE)
+            connection.setValveState(left_valve, False)
+            connection.setValveState(right_valve, False)
+            connection.setValveState(VALVE_ID["bypass"][row_num], True)
+            connection.setValveState(input_valve, False)
+            adjusted_sleep(1, test_mode)
 
-        connection.setValveState(VALVE_ID["purge"], False)
-        adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime3"], TEST_MODE)
+            connection.setValveState(VALVE_ID["purge"], True)
+            connection.setValveState(VALVE_ID["fresh"], True)
+            adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime2"], test_mode)
 
-        # Final valve state cleanup
-        connection.setValveState(VALVE_ID["fresh"], False)
-        connection.setValveState(VALVE_ID["muxIn"], False)
-        for vid in VALVE_ID["bypass"]:
-            connection.setValveState(vid, False)
+            connection.setValveState(VALVE_ID["purge"], False)
+            adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime3"], test_mode)
 
-        # Log experiment step
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log.append({
-            "type": "feed",
-            "valve": input_valve,
-            "row": row_num,
-            "col": col_num,
-            "side": side,
-            "timestamp": timestamp
-        })
-        log_fn(f"{timestamp} → Feed Input Valve {input_valve} → Row {row_num}, Column {col_num}, Side {side}")
+            connection.setValveState(VALVE_ID["fresh"], False)
+            connection.setValveState(VALVE_ID["muxIn"], False)
+            for vid in VALVE_ID["bypass"]:
+                connection.setValveState(vid, False)
 
-    # Global valve shutdown
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_entry = {
+                "type": "feed",
+                "valve": input_valve,
+                "row": row_num,
+                "col": col_num,
+                "side": side,
+                "timestamp": timestamp
+            }
+            log.append(log_entry)
+            log_fn(f"{timestamp} → Feed Input Valve {input_valve} → Row {row_num}, Column {col_num}, Side {side}")
+
+            log_line = '    ' + json.dumps(log_entry)
+            if i < len(schedule) - 1:
+                log_line += ','
+            log_line += '\n'
+            log_file.write(log_line)
+            log_file.flush()
+
+        end_time = datetime.datetime.now()
+
+        log_file.write('  ],\n')
+        log_file.write('  "summary": {\n')
+        log_file.write(f'    "end_time": "{end_time.strftime("%Y-%m-%d %H:%M:%S")}",\n')
+        log_file.write(f'    "duration_min": {(end_time - start_time).total_seconds() / 60:.2f},\n')
+        log_file.write(f'    "num_feeds": {len(log)}\n')
+        log_file.write('  }\n}\n')
+
     log_fn("Experiment completed. Closing all valves...")
     all_valves = set(range(28, 47)) \
         | set(valve for pair in VALVE_ID["chamberIn"] for valve in pair) \
@@ -230,12 +255,6 @@ def runExperimentMatrix(
 
     for vid in all_valves:
         connection.setValveState(vid, False)
-
-    end_time = datetime.datetime.now()
-    log.append({
-        "type": "experiment_end",
-        "timestamp": end_time.strftime('%Y-%m-%d %H:%M:%S')
-    })
 
     return {
         "metadata": {
@@ -246,11 +265,12 @@ def runExperimentMatrix(
             "duration_min": (end_time - start_time).total_seconds() / 60,
             "delay_min": delay_min,
             "bypass_on": bypass_on,
-            "test_mode": TEST_MODE,
-            "num_feeds": len([e for e in log if e["type"] == "feed"])
+            "test_mode": test_mode,
+            "num_feeds": len(log)
         },
         "expLog": log
     }
+
 
 def saveExperimentMatrixToJson(filename: str, matrix: List[List[int]]):
     """Save the experiment matrix to a JSON file."""
@@ -289,7 +309,7 @@ class ExperimentRunner(QRunnable):
         super().__init__()
         self.gui = gui
         self.delay_min = delay_min
-        self.test_mode = TEST_MODE
+        self.test_mode = test_mode
         self.time_scale = time_scale
         self._pause_event = Event()
         self._pause_event.set()
@@ -297,9 +317,12 @@ class ExperimentRunner(QRunnable):
 
     @Slot()
     def run(self):
+        # self.gui.logMessage("[DEBUG] ExperimentRunner.run() called")
         try:
             expMatrix = generateExperimentMatrix(time_scale=self.time_scale)
-            saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
+            matrix_file_path = os.path.join(BASE_DIR, 'CCC5p2_ExpMatrix.json')
+            saveExperimentMatrixToJson(matrix_file_path, expMatrix)
+            # saveExperimentMatrixToJson("CCC5p2_ExpMatrix.json", expMatrix)
             connection = self.gui.control_box
             expResults = runExperimentMatrix(
                 connection, expMatrix,
@@ -308,8 +331,8 @@ class ExperimentRunner(QRunnable):
                 test_mode=self.test_mode,
                 log_fn=self.gui.logMessage,
             )
-            with open('CCC5p2_ExpLog.json', 'w') as f:
-                json.dump(expResults, f, indent=2)
+            # with open('CCC5p2_ExpLog.json', 'w') as f:
+            #     json.dump(expResults, f, indent=2)
             QTimer.singleShot(0, lambda: self.gui.logMessage("Experiment completed."))
 
         except Exception as e:
