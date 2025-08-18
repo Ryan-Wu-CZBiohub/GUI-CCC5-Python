@@ -150,7 +150,7 @@ def runExperimentMatrix(
         log_file.write(f'    "bypass_on": {str(bypass_on).lower()},\n')
         log_file.write(f'    "test_mode": {str(test_mode).lower()}\n')
         log_file.write('  },\n')
-        log_file.write('  "log_entries": [\n')
+        log_file.write('  "log_entries": [\n')  
 
         def log_mux(column_index, label):
             setMuxValves(connection, VALVE_ID["mux"], column_index, lambda msg: log_fn(f"{label} → {msg}"))
@@ -174,20 +174,23 @@ def runExperimentMatrix(
             while datetime.datetime.now() < scheduled_time:
                 time.sleep(0.01 if test_mode else 0.5)
 
+            # feeding
             log_mux(col_num, "Feeding")
-
+            connection.setValveState(VALVE_ID["outlet"], True)
             connection.setValveState(VALVE_ID["bypass"][row_num], True)
             connection.setValveState(input_valve, True)
             connection.setValveState(VALVE_ID["muxIn"], True)
             connection.setValveState(VALVE_ID["purge"], True)
             adjusted_sleep(EXPERIMENT_TIMING_CONFIG["purgeTime1"], test_mode)
 
+            # prefill pathways
             connection.setValveState(VALVE_ID["purge"], False)
             adjusted_sleep(EXPERIMENT_TIMING_CONFIG["prefillTime"], test_mode)
 
             if not bypass_on:
                 connection.setValveState(VALVE_ID["bypass"][row_num], False)
 
+            # feed chambers
             left_valve, right_valve = VALVE_ID["chamberIn"][row_num]
             if side == 0:
                 connection.setValveState(left_valve, True)
@@ -196,11 +199,10 @@ def runExperimentMatrix(
             elif side == 2:
                 connection.setValveState(left_valve, True)
                 connection.setValveState(right_valve, True)
-
             adjusted_sleep(EXPERIMENT_TIMING_CONFIG["feedTime"], test_mode)
 
+            # cleaning
             log_mux(col_num, "Cleaning")
-
             connection.setValveState(left_valve, False)
             connection.setValveState(right_valve, False)
             connection.setValveState(VALVE_ID["bypass"][row_num], True)
@@ -216,6 +218,7 @@ def runExperimentMatrix(
 
             connection.setValveState(VALVE_ID["fresh"], False)
             connection.setValveState(VALVE_ID["muxIn"], False)
+            connection.setValveState(VALVE_ID["outlet"], False)
             for vid in VALVE_ID["bypass"]:
                 connection.setValveState(vid, False)
 
