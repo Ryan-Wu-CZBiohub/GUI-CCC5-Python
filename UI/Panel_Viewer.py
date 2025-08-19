@@ -9,7 +9,9 @@ import math
 
 from Connection.Connection import Connection
 from Control.Panel_Controller import ValveController, PumpController
-
+from Experiment_Config import (
+    NUM_TOTAL_VALVES
+)
 
 class ValveSlots(QWidget):
     def __init__(self, row, col, valve_panel):
@@ -94,7 +96,7 @@ class ValvePanel(QWidget):
         valve_id = 0        
         for i in range(self.rows):
             for j in range(self.cols):
-                if valve_id >= 48:    #### Change this to the number of valves you want ####
+                if valve_id >= NUM_TOTAL_VALVES:    #### Change this to the number of valves you want ####
                     break
         
                 btn = DraggableValveButton(f"{valve_id} - CLOSE", valve_id, self)

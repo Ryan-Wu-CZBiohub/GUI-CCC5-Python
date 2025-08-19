@@ -10,6 +10,9 @@ and experiment matrix structure.
 EXPERIMENT_NAME = "CCC5P2 Keratinocytes Experiment"
 EXPERIMENT_TOTAL_TIME = 1440  # Total experiment time in minutes (24 hours)
 
+# Number of total valves used in the experiment
+NUM_TOTAL_VALVES = 48
+
 # Sequence of valve IDs used for input control
 VALVE_INPUT_SEQUENCE = [24] + list(range(46, 27, -1))  # Fresh media + inputs 1–18
 
@@ -37,7 +40,7 @@ VALVE_ID = {
 }
 
 # TEST MODE
-TEST_MODE = False  # Set to True for testing
+TEST_MODE = False # Set to True for testing
 
 # Coating configuration
 COATING_CONFIG = {
