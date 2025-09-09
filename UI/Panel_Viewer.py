@@ -99,7 +99,7 @@ class ValvePanel(QWidget):
                 if valve_id >= NUM_TOTAL_VALVES:    #### Change this to the number of valves you want ####
                     break
         
-                btn = DraggableValveButton(f"{valve_id} - CLOSE", valve_id, self)
+                btn = QPushButton(f"{valve_id} - CLOSE", self)
                 btn.setContextMenuPolicy(Qt.CustomContextMenu)
                 btn.customContextMenuRequested.connect(self.showValveContextMenu)
                 btn.setFixedSize(self.valve_width, self.valve_height)
@@ -116,7 +116,7 @@ class ValvePanel(QWidget):
                 self.valve_controller.positions[valve_id] = (i, j)
 
                 valve_id += 1
-            if valve_id >= 48:    #### Change this to the number of valves you want
+            if valve_id >= NUM_TOTAL_VALVES:        #### Change this to the number of valves you want
                 break
 
         self.setLayout(valve_panel_layout)
@@ -227,31 +227,6 @@ class ValvePanel(QWidget):
         self.valve_controller.positions.clear()
         self.deleted_buttons.clear()
         self.updateStatus("All slots cleared.")
-
-
-class DraggableValveButton(QPushButton):
-    def __init__(self, text, valve_id, parent=None):
-        super().__init__(text, parent)
-        self.valve_id = valve_id
-        self.setAcceptDrops(True)
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() & Qt.LeftButton:
-            drag = QDrag(self)
-            mime_data = QMimeData()
-            mime_data.setText(str(self.valve_id))
-            drag.setMimeData(mime_data)
-            drag.exec(Qt.MoveAction)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasText():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        source_valve_id = int(event.mimeData().text())
-        target_valve_id = self.valve_id
-        self.parent().swapValves(source_valve_id, target_valve_id)
-        event.acceptProposedAction()
 
 
 # Not used in the current context, but kept for potential future use

@@ -52,10 +52,10 @@ COATING_CONFIG = {
 # Experiment timing parameters (in seconds)
 EXPERIMENT_TIMING_CONFIG = {
     "purgeTime1": 5,
-    "purgeTime2": 10,
-    "purgeTime3": 5,
+    "purgeTime2": 20,
+    "purgeTime3": 15,
     "prefillTime": 10,
-    "feedTime": 8,
+    "feedTime": 10,
 }
 
 # Optional per-column offset (in minutes) to avoid simultaneous operations
@@ -93,28 +93,40 @@ EXPERIMENT_CONFIG = [
         "row": 1,
         "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 60)),  # Every 60 min
         "column_to_input": {
-            i: i for i in range(1, 17)
+            1: 1,  2: 2,  3: 3,  4: 4,
+            5: 5,  6: 6,  7: 7,  8: 8,
+            9: 9, 10: 10, 11: 11, 12: 12,
+            13: 13, 14: 14, 15: 15, 16: 16
         }
     },
     {
         "row": 2,
         "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 120)),  # Every 120 min
         "column_to_input": {
-            i: i for i in range(1, 17)
+            1: 1,  2: 2,  3: 3,  4: 4,
+            5: 5,  6: 6,  7: 7,  8: 8,
+            9: 9, 10: 10, 11: 11, 12: 12,
+            13: 13, 14: 14, 15: 15, 16: 16
         }
     },
     {
         "row": 3,
         "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 240)),  # Every 240 min
         "column_to_input": {
-            i: i for i in range(1, 17)
+            1: 1,  2: 2,  3: 3,  4: 4,
+            5: 5,  6: 6,  7: 7,  8: 8,
+            9: 9, 10: 10, 11: 11, 12: 12,
+            13: 13, 14: 14, 15: 15, 16: 16
         }
     },
     {
         "row": 4,
         "intervals": list(range(0, EXPERIMENT_TOTAL_TIME + 1, 480)),  # Every 480 min
         "column_to_input": {
-            i: i for i in range(1, 17)
+            1: 1,  2: 2,  3: 3,  4: 4,
+            5: 5,  6: 6,  7: 7,  8: 8,
+            9: 9, 10: 10, 11: 11, 12: 12,
+            13: 13, 14: 14, 15: 15, 16: 16
         }
     },
 
